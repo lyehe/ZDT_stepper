@@ -2,299 +2,115 @@
 StepperLib - A robust library for stepper motor control
 """
 
-from dataclasses import dataclass
-from enum import Enum, IntEnum, auto
-from typing import TypeAlias, Literal, Final
 import logging
 import time
 from serial import Serial
-from pathlib import Path
 
-# Type definitions
-Address: TypeAlias = int
-CommandCode: TypeAlias = int
-Status: TypeAlias = int
-Direction = Literal[0, 1]  # 0=CW, 1=CCW
-StoreFlag = Literal[0, 1]  # 0=temporary, 1=permanent
-SyncFlag = Literal[0, 1]  # 0=no sync, 1=sync
-
-
-# Command codes
-class CMD(IntEnum):
-    """Command codes for stepper motor protocol"""
-
-    # Control Commands
-    ENABLE = 0xF3
-    SPEED = 0xF6
-    POSITION = 0xFD
-    EMERGENCY_STOP = 0xFE
-    SYNC_MOVE = 0xFF
-
-    # Homing Commands
-    SET_ZERO = 0x93
-    TRIGGER_HOME = 0x9A
-    ABORT_HOME = 0x9C
-
-    # Action Commands
-    CALIBRATE = 0x06
-    CLEAR_POS = 0x0A
-    CLEAR_STALL = 0x0E
-    FACTORY_RESET = 0x0F
-
-    # Read Commands
-    READ_VERSION = 0x1F
-    READ_PHASE_PARAMS = 0x20
-    READ_PID = 0x21
-    READ_BUS_VOLTAGE = 0x24
-    READ_PHASE_CURRENT = 0x27
-    READ_CALIBRATED_ENCODER = 0x31
-    READ_INPUT_PULSE_COUNT = 0x32
-    READ_TARGET = 0x33  # Target position
-    READ_REALTIME_TARGET = 0x34
-    READ_REALTIME_SPEED = 0x35
-    READ_POSITION = 0x36
-    READ_POSITION_ERROR = 0x37
-    READ_STATUS = 0x3A
-    READ_HOMING_STATUS = 0x3B
-    READ_DRIVE_CONFIG = 0x42
-    READ_SYSTEM_STATUS = 0x43
-
-    # Configuration Commands
-    MODIFY_SUBDIVISION = 0x84
-    MODIFY_ID_ADDRESS = 0xAE
-    SWITCH_LOOP_MODE = 0x46
-    MODIFY_OPEN_LOOP_CURRENT = 0x44
-    MODIFY_PID_PARAMS = 0x4A
-    STORE_SPEED_PARAMS = 0xF7
-    MODIFY_SPEED_SCALE = 0x4F
+from .stepper_exceptions import (
+    CommandError,
+    ValidationError,
+    CommunicationError,
+    StatusError,
+)
+from .stepper_constants import (
+    CMD_CODE,
+    PROTOCOL,
+    COMPort,
+    Direction,
+    StoreFlag,
+    SyncFlag,
+    BaudRate,
+)
+from .stepper_dataclasses import (
+    CommandOutput,
+    MotorStatus,
+    Position,
+    CommandInput,
+    EncoderCalibrationStatus,
+)
 
 
-# Protocol constants
-SYNC_BYTE: Final[int] = 0xAB
-CHECKSUM_BYTE: Final[int] = 0x6B
-SUCCESS_CODE: Final[int] = 0x02
-ERROR_CODE: Final[int] = 0xEE
-CONDITION_ERROR: Final[int] = 0xE2
-
-
-class MotorError(Exception):
-    """Base exception for motor errors"""
-
-
-class CommandError(MotorError):
-    """Error executing a command"""
-
-
-class ValidationError(MotorError):
-    """Error validating command parameters"""
-
-
-class CommunicationError(MotorError):
-    """Error communicating with the motor"""
-
-
-class StatusError(MotorError):
-    """Error with motor status"""
-
-
-@dataclass(frozen=True)
-class CommandResult:
-    """Result of a motor command execution"""
-
-    success: bool
-    code: int
-    data: bytes | None = None
-
-    @property
-    def is_error(self) -> bool:
-        return not self.success
-
-    @property
-    def is_condition_error(self) -> bool:
-        return self.code == CONDITION_ERROR
-
-
-@dataclass
-class MotorStatus:
-    """Motor status information"""
-
-    enabled: bool = False
-    position_reached: bool = False
-    stalled: bool = False
-    protection_triggered: bool = False
-
-    @classmethod
-    def from_byte(cls, status: int) -> "MotorStatus":
-        return cls(
-            enabled=bool(status & 0x01),
-            position_reached=bool(status & 0x02),
-            stalled=bool(status & 0x04),
-            protection_triggered=bool(status & 0x08),
-        )
-
-
-@dataclass
-class Position:
-    """Motor position information"""
-
-    steps: int
-    revolutions: int
-    degrees: float
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> "Position":
-        if len(data) < 4:
-            raise ValueError("Position data must be at least 4 bytes")
-
-        sign = -1 if data[0] else 1
-        steps = sign * int.from_bytes(data[1:], "big")
-        revolutions = steps // 65536
-        degrees = (abs(steps) % 65536) * 360 / 65536
-        return cls(steps=steps, revolutions=revolutions, degrees=degrees)
-
-    def __str__(self) -> str:
-        return f"Position(steps={self.steps}, revolutions={self.revolutions}, degrees={self.degrees:.1f})"
-
-
-class Command:
-    """Base class for motor commands"""
-
-    def __init__(
-        self,
-        code: CommandCode,
-        *,
-        data: bytes = b"",
-        requires_enabled: bool = True,
-        timeout: float = 1.0,
-        retries: int = 3,
-        description: str = "",
-    ):
-        self.code = code
-        self.data = data
-        self.requires_enabled = requires_enabled
-        self.timeout = timeout
-        self.retries = retries
-        self.description = description or CMD(code).name
-
-    def build(self, address: Address) -> bytes:
-        """Build complete command bytes"""
-        cmd = bytes([address, self.code]) + self.data
-        return cmd + bytes([CHECKSUM_BYTE])
-
-    def parse_response(self, response: bytes) -> CommandResult:
-        """Parse command response"""
-        if len(response) < 4:
-            raise CommandError(f"Response too short: {len(response)} bytes")
-
-        # For status commands, always treat as success if we got a response
-        if self.code in (CMD.READ_STATUS, CMD.READ_HOMING_STATUS):
-            return CommandResult(
-                success=True,
-                code=response[2],  # The status byte
-                data=bytes([response[2]]),  # Include status byte as data
-            )
-
-        # Rest of the method remains the same
-        is_read_command = (self.code & 0xF0) <= 0x40
-        if is_read_command:
-            success = response[2] != ERROR_CODE and response[2] != CONDITION_ERROR
-        else:
-            success = response[2] == SUCCESS_CODE
-
-        code = response[2]
-        data = response[3:-1] if len(response) > 4 else None
-
-        return CommandResult(success=success, code=code, data=data)
-
-
-@dataclass
-class EncoderCalibrationStatus:
-    """Encoder calibration status information"""
-
-    is_calibrated: bool = False
-    calibration_table_ready: bool = False
-    zero_position_set: bool = False
-
-    @classmethod
-    def from_byte(cls, status: int) -> "EncoderCalibrationStatus":
-        return cls(
-            is_calibrated=bool(status & 0x01),
-            calibration_table_ready=bool(status & 0x02),
-            zero_position_set=bool(status & 0x04),
-        )
-
-
-class StepperMotor:
+class SerialController:
     """Main stepper motor control class"""
 
     def __init__(
         self,
-        port: str | Path,
-        address: Address = 0x01,
-        baudrate: int = 115200,
-        timeout: float = 1.0,
+        port: COMPort,
+        baudrate: BaudRate = 115200,
+        timeout: float = 0.1,
+        retry_count: int = 3,
+        retry_delay: float = 0.1,
     ):
-        if not 1 <= address <= 15:
-            raise ValidationError("Address must be between 1 and 15")
-        self.address = address
         self.timeout = timeout
-        self._enabled = None
+        self._enabled = self.get_status().enabled
+        self.retry_count = retry_count
+        self.retry_delay = retry_delay
         self._serial = Serial(
             port=str(port), baudrate=baudrate, timeout=timeout, write_timeout=timeout
         )
-        self._logger = logging.getLogger("StepperMotor")
+        self._logger = logging.getLogger("Stepper")
 
     @property
     def is_enabled(self) -> bool:
-        return self._enabled or self.get_status().enabled
+        return self._enabled
 
-    def _execute(self, command: Command) -> CommandResult:
+    def close(self) -> None:
+        """Close serial connection"""
+        self._serial.close()
+
+    def __enter__(self) -> "SerialController":
+        return self
+
+    def __exit__(self) -> None:
+        self.close()
+
+    def _execute(self, command: CommandInput) -> CommandOutput:
         """Execute a command and return the result"""
-        if (
-            self._enabled is not None
-            and command.requires_enabled
-            and not self.is_enabled
-        ):
+        if command.requires_enabled and not self.is_enabled:
             raise StatusError("Motor must be enabled")
 
         cmd_bytes = command.build(self.address)
-        retries = command.retries
+        retry_count = self.retry_count
+        self._logger.debug(f"Command: {command.description}")
+        self._logger.debug(f"TX: {cmd_bytes.hex(' ').upper()}")
 
-        # Log the command with semantic meaning
-        self._logger.debug(
-            f"Command: {command.description}\n" f"TX: {cmd_bytes.hex(' ').upper()}"
-        )
-
-        while retries >= 0:
+        while retry_count >= 0:
             try:
                 self._serial.write(cmd_bytes)
-                response = self._serial.read_until(bytes([CHECKSUM_BYTE]))
+                response = self._serial.read_until(
+                    size=command.expected_response_length
+                )
                 if not response:
                     raise CommunicationError("No response received")
 
-                # Log the response with command context
-                self._logger.debug(
-                    f"Response to {command.description}:\n"
-                    f"RX: {response.hex(' ').upper()}"
-                )
+                self._logger.debug(f"Response to {command.description}:\n")
+                self._logger.debug(f"RX: {response.hex(' ').upper()}")
 
-                return command.parse_response(response)
-            except Exception as e:
-                if retries == 0:
+                output = command.parse_response(response)
+                self._validate(command, output)
+                return output
+
+            except Exception as ex:
+                if retry_count == 0:
                     raise
-                retries -= 1
+                retry_count -= 1
                 self._logger.warning(
-                    f"Command {command.description} failed, retrying: {e}"
+                    f"Command {command.description} failed, retrying: {ex}"
                 )
-                time.sleep(0.1)
+                time.sleep(command.retry_delay)
 
-    def enable(self, store: StoreFlag = 0, sync: SyncFlag = 0) -> None:
+    def _validate(self, command: CommandInput, output: CommandOutput) -> None:
+        pass
+
+    def enable(self) -> None:
         """Enable the motor"""
-        cmd = Command(
-            CMD.ENABLE,
-            data=bytes([SYNC_BYTE, 1, sync]),
+        cmd = CommandInput(
+            device_number=self.address,
+            code=CMD_CODE.ENABLE,
+            data=bytes([CMD_CODE.ENABLE_CODE, PROTOCOL.ENABLE, self._sync]),
             requires_enabled=False,
-            description=f"Enable motor (store={store}, sync={sync})",
+            description=f"Enable motor (store={self._store}, sync={self._sync})",
+            checksum_type=self._checksum_type,
         )
         result = self._execute(cmd)
         if result.success:
@@ -306,9 +122,9 @@ class StepperMotor:
 
     def disable(self) -> None:
         """Disable the motor"""
-        cmd = Command(
-            CMD.ENABLE,
-            data=bytes([SYNC_BYTE, 0, 0]),
+        cmd = self._create_command(
+            code=CMD_CODE.ENABLE,
+            data=bytes([PROTOCOL.SYNC_BYTE, 0, 0]),
             requires_enabled=False,
             description="Disable motor",
         )
@@ -318,9 +134,9 @@ class StepperMotor:
 
     def emergency_stop(self) -> None:
         """Emergency stop the motor"""
-        cmd = Command(
-            CMD.EMERGENCY_STOP,
-            data=bytes([0x98, 0]),
+        cmd = self._create_command(
+            CMD_CODE.EMERGENCY_STOP,
+            data=bytes([PROTOCOL.EMERGENCY_STOP_CODE, 0]),
             requires_enabled=False,
             description="Emergency stop",
         )
@@ -340,8 +156,8 @@ class StepperMotor:
         if not 0 <= acceleration <= 255:
             raise ValidationError("Acceleration must be 0-255")
 
-        cmd = Command(
-            CMD.SPEED,
+        cmd = self._create_command(
+            CMD_CODE.SPEED,
             data=bytes([direction])
             + rpm.to_bytes(2, "big")
             + bytes([acceleration, sync]),
@@ -366,8 +182,8 @@ class StepperMotor:
         if not 0 <= acceleration <= 255:
             raise ValidationError("Acceleration must be 0-255")
 
-        cmd = Command(
-            CMD.POSITION,
+        cmd = self._create_command(
+            CMD_CODE.POSITION,
             data=bytes([direction])
             + speed.to_bytes(2, "big")
             + bytes([acceleration])
@@ -385,7 +201,9 @@ class StepperMotor:
 
     def get_position(self) -> Position:
         """Get current motor position"""
-        cmd = Command(CMD.READ_POSITION, description="Read current position")
+        cmd = self._create_command(
+            CMD_CODE.READ_POSITION, description="Read current position"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             return Position.from_bytes(result.data)
@@ -394,7 +212,9 @@ class StepperMotor:
 
     def get_status(self) -> MotorStatus:
         """Get motor status"""
-        cmd = Command(CMD.READ_STATUS, description="Read motor status")
+        cmd = self._create_command(
+            CMD_CODE.READ_STATUS, description="Read motor status"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             return MotorStatus.from_byte(result.data[0])
@@ -402,8 +222,8 @@ class StepperMotor:
 
     def set_zero(self, store: StoreFlag = 1) -> None:
         """Set current position as zero"""
-        cmd = Command(
-            CMD.SET_ZERO,
+        cmd = self._create_command(
+            CMD_CODE.SET_ZERO,
             data=bytes([0x88, store]),
             description=f"Set zero position (store={store})",
         )
@@ -437,8 +257,8 @@ class StepperMotor:
             3: "multi-turn limit switch",
         }
 
-        cmd = Command(
-            CMD.TRIGGER_HOME,
+        cmd = self._create_command(
+            CMD_CODE.TRIGGER_HOME,
             data=bytes([mode, sync]),
             description=f"Home motor ({mode_desc[mode]})",
             timeout=10.0,  # Increase timeout for homing operation
@@ -456,8 +276,10 @@ class StepperMotor:
 
     def abort_home(self) -> None:
         """Abort homing operation"""
-        cmd = Command(
-            CMD.ABORT_HOME, data=bytes([0x48]), description="Abort homing operation"
+        cmd = self._create_command(
+            CMD_CODE.ABORT_HOME,
+            data=bytes([0x48]),
+            description="Abort homing operation",
         )
         result = self._execute(cmd)
         if result.is_condition_error:
@@ -465,38 +287,19 @@ class StepperMotor:
 
     def clear_stall(self) -> None:
         """Clear stall protection"""
-        cmd = Command(
-            CMD.CLEAR_STALL, data=bytes([0x52]), description="Clear stall protection"
+        cmd = self._create_command(
+            CMD_CODE.CLEAR_STALL,
+            data=bytes([0x52]),
+            description="Clear stall protection",
         )
         result = self._execute(cmd)
         if result.is_condition_error:
             raise StatusError("No stall protection triggered")
 
-    def factory_reset(self) -> None:
-        """Reset to factory settings"""
-        cmd = Command(
-            CMD.FACTORY_RESET,
-            data=bytes([0x5F]),
-            requires_enabled=False,
-            description="Factory reset",
-        )
-        self._execute(cmd)
-        self._enabled = False
-
-    def close(self) -> None:
-        """Close serial connection"""
-        self._serial.close()
-
-    def __enter__(self) -> "StepperMotor":
-        return self
-
-    def __exit__(self, *args) -> None:
-        self.close()
-
     def get_realtime_target(self) -> Position:
         """Get real-time target position"""
-        cmd = Command(
-            CMD.READ_REALTIME_TARGET, description="Read real-time target position"
+        cmd = self._create_command(
+            CMD_CODE.READ_REALTIME_TARGET, description="Read real-time target position"
         )
         result = self._execute(cmd)
         if result.success and result.data:
@@ -505,7 +308,9 @@ class StepperMotor:
 
     def get_realtime_speed(self) -> int:
         """Get real-time speed in RPM"""
-        cmd = Command(CMD.READ_REALTIME_SPEED, description="Read real-time speed")
+        cmd = self._create_command(
+            CMD_CODE.READ_REALTIME_SPEED, description="Read real-time speed"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             sign = -1 if result.data[0] else 1
@@ -515,7 +320,9 @@ class StepperMotor:
 
     def get_position_error(self) -> int:
         """Get position error in steps"""
-        cmd = Command(CMD.READ_POSITION_ERROR, description="Read position error")
+        cmd = self._create_command(
+            CMD_CODE.READ_POSITION_ERROR, description="Read position error"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             sign = -1 if result.data[0] else 1
@@ -533,8 +340,8 @@ class StepperMotor:
             - homing_in_progress: Homing operation in progress
             - homing_failed: Homing operation failed
         """
-        cmd = Command(
-            CMD.READ_HOMING_STATUS,
+        cmd = self._create_command(
+            CMD_CODE.READ_HOMING_STATUS,
             requires_enabled=False,  # Status can be read when disabled
             description="Read homing status",
         )
@@ -566,8 +373,8 @@ class StepperMotor:
         if not 0 <= subdivision <= 255:
             raise ValidationError("Subdivision must be 0-255")
 
-        cmd = Command(
-            CMD.MODIFY_SUBDIVISION,
+        cmd = self._create_command(
+            CMD_CODE.MODIFY_SUBDIVISION,
             data=bytes([0x8A, store, subdivision]),
             description=f"Set subdivision to {subdivision}",
         )
@@ -583,8 +390,8 @@ class StepperMotor:
         if not 1 <= new_address <= 15:
             raise ValidationError("Address must be 1-15")
 
-        cmd = Command(
-            CMD.MODIFY_ID_ADDRESS,
+        cmd = self._create_command(
+            CMD_CODE.MODIFY_ID_ADDRESS,
             data=bytes([0x4B, store, new_address]),
             description=f"Change address to {new_address}",
         )
@@ -600,8 +407,8 @@ class StepperMotor:
             store: Store to memory flag
         """
         mode = 1 if open_loop else 2
-        cmd = Command(
-            CMD.SWITCH_LOOP_MODE,
+        cmd = self._create_command(
+            CMD_CODE.SWITCH_LOOP_MODE,
             data=bytes([0x69, store, mode]),
             description=f"Set {'open' if open_loop else 'closed'} loop mode",
         )
@@ -617,8 +424,8 @@ class StepperMotor:
         if not 0 <= current_ma <= 65535:
             raise ValidationError("Current must be 0-65535 mA")
 
-        cmd = Command(
-            CMD.MODIFY_OPEN_LOOP_CURRENT,
+        cmd = self._create_command(
+            CMD_CODE.MODIFY_OPEN_LOOP_CURRENT,
             data=bytes([0x33, store]) + current_ma.to_bytes(2, "big"),
             description=f"Set open loop current to {current_ma}mA",
         )
@@ -635,8 +442,8 @@ class StepperMotor:
             kd: Derivative gain (32-bit)
             store: Store to memory flag
         """
-        cmd = Command(
-            CMD.MODIFY_PID_PARAMS,
+        cmd = self._create_command(
+            CMD_CODE.MODIFY_PID_PARAMS,
             data=bytes([0xC3, store])
             + kp.to_bytes(4, "big")
             + ki.to_bytes(4, "big")
@@ -665,8 +472,8 @@ class StepperMotor:
         if not 0 <= acceleration <= 255:
             raise ValidationError("Acceleration must be 0-255")
 
-        cmd = Command(
-            CMD.STORE_SPEED_PARAMS,
+        cmd = self._create_command(
+            CMD_CODE.STORE_SPEED_PARAMS,
             data=bytes([0x1C, 1, direction])
             + rpm.to_bytes(2, "big")
             + bytes([acceleration, 1 if enable else 0]),
@@ -681,8 +488,8 @@ class StepperMotor:
             divide_by_ten: If True, input speeds will be divided by 10
             store: Store to memory flag
         """
-        cmd = Command(
-            CMD.MODIFY_SPEED_SCALE,
+        cmd = self._create_command(
+            CMD_CODE.MODIFY_SPEED_SCALE,
             data=bytes([0x71, store, 1 if divide_by_ten else 0]),
             description=f"Set speed scale ({'÷10' if divide_by_ten else 'normal'})",
         )
@@ -694,7 +501,9 @@ class StepperMotor:
         Returns:
             Dictionary with resistance (mΩ) and inductance (μH)
         """
-        cmd = Command(CMD.READ_PHASE_PARAMS, description="Read phase parameters")
+        cmd = self._create_command(
+            CMD_CODE.READ_PHASE_PARAMS, description="Read phase parameters"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             resistance = int.from_bytes(result.data[0:2], "big")  # mΩ
@@ -704,16 +513,21 @@ class StepperMotor:
 
     def get_bus_voltage(self) -> float:
         """Get bus voltage in volts"""
-        cmd = Command(CMD.READ_BUS_VOLTAGE, description="Read bus voltage")
+        cmd = self._create_command(
+            CMD_CODE.READ_BUS_VOLTAGE, description="Read bus voltage"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             voltage_mv = int.from_bytes(result.data, "big")
+            print(f"Voltage: {result.data}")
             return voltage_mv / 1000.0  # Convert mV to V
         raise CommandError("Failed to read bus voltage")
 
     def get_phase_current(self) -> float:
         """Get phase current in amps"""
-        cmd = Command(CMD.READ_PHASE_CURRENT, description="Read phase current")
+        cmd = self._create_command(
+            CMD_CODE.READ_PHASE_CURRENT, description="Read phase current"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             current_ma = int.from_bytes(result.data, "big")
@@ -722,8 +536,9 @@ class StepperMotor:
 
     def get_calibrated_encoder(self) -> int:
         """Get calibrated encoder value (0-65535 per revolution)"""
-        cmd = Command(
-            CMD.READ_CALIBRATED_ENCODER, description="Read calibrated encoder value"
+        cmd = self._create_command(
+            CMD_CODE.READ_CALIBRATED_ENCODER,
+            description="Read calibrated encoder value",
         )
         result = self._execute(cmd)
         if result.success and result.data:
@@ -732,7 +547,9 @@ class StepperMotor:
 
     def get_input_pulse_count(self) -> int:
         """Get input pulse count with direction"""
-        cmd = Command(CMD.READ_INPUT_PULSE_COUNT, description="Read input pulse count")
+        cmd = self._create_command(
+            CMD_CODE.READ_INPUT_PULSE_COUNT, description="Read input pulse count"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             sign = -1 if result.data[0] else 1
@@ -769,107 +586,70 @@ class StepperMotor:
             - stall_detection_time: Time in ms
             - position_arrival_window: Window in degrees
         """
-        cmd = Command(
-            CMD.READ_DRIVE_CONFIG,
+        cmd = self._create_command(
+            CMD_CODE.READ_DRIVE_CONFIG,
             data=bytes([0x6C]),
             description="Read drive configuration",
-            requires_enabled=False,  # Configuration can be read when disabled
+            requires_enabled=False,
         )
         result = self._execute(cmd)
 
-        # Add debug logging
-        self._logger.debug(
-            f"Drive config response: success={result.success}, code=0x{result.code:02X}, data_length={len(result.data) if result.data else 0}"
-        )
-
-        # Check response validity
-        if not result.success:
-            raise CommandError(
-                f"Drive configuration command failed with code: 0x{result.code:02X}"
-            )
-
-        if not result.data:
-            raise CommandError("No data received from drive configuration command")
-
-        data_length = len(result.data)
-        if data_length < 29:
-            raise CommandError(
-                f"Incomplete drive configuration data: received {data_length} bytes, expected 33"
-            )
-
-        # Parse the 33-byte response data structure
-        count = result.code
-        data = result.data
+        if not result.success or not result.data:
+            raise CommandError("Failed to read drive configuration")
 
         try:
-            # Convert motor type code to string
-            motor_type = (
-                "1.8°"
-                if data[1] == 0x19
-                else "0.9°"
-                if data[1] == 0x32
-                else f"Unknown (0x{data[2]:02X})"
-            )
+            data = result.data
 
-            # Convert direction to string
-            direction = "CW" if data[5] == 0 else "CCW"
+            # Debug log the raw data
+            self._logger.debug(f"Drive config raw data: {data.hex(' ').upper()}")
 
-            # Calculate subdivision (0 means 256)
-            subdivision = 256 if data[6] == 0 else data[6]
+            # Basic validation
+            if len(data) < 29:  # Minimum expected length
+                raise CommandError(f"Incomplete configuration data: {len(data)} bytes")
 
-            # Convert baud rate code to actual rate
-            baud_rates = {1: 9600, 2: 19200, 3: 38400, 4: 57600, 5: 115200}
-            baud_rate = baud_rates.get(data[15], f"Unknown (0x{data[15]:02X})")
-
-            # Convert CAN rate code to actual rate
-            can_rates = {
-                1: 10000,
-                2: 20000,
-                3: 50000,
-                4: 100000,
-                5: 125000,
-                6: 250000,
-                7: 500000,
-                8: 1000000,
-            }
-            can_rate = can_rates.get(data[16], f"Unknown (0x{data[14]:02X})")
-
-            # Parse stall parameters (6 bytes starting at index 20)
-            stall_speed = int.from_bytes(data[21:23], "big")
-            stall_current = int.from_bytes(data[23:25], "big")
-            stall_time = int.from_bytes(data[25:27], "big")
-            position_window = (
-                int.from_bytes(data[27:29], "big") / 10.0
-            )  # Convert to degrees
-
+            # Parse fixed fields
             config = {
-                "byte_count": count,
-                "param_count": data[0],
-                "motor_type": motor_type,
-                "pulse_control_mode": data[2],
-                "communication_mode": data[3],
-                "en_pin_level": data[4],
-                "dir_pin_direction": direction,
-                "subdivision": subdivision,
-                "subdivision_interpolation": bool(data[7]),
-                "auto_screen_off": bool(data[8]),
-                "open_loop_current": int.from_bytes(data[9:11], "big"),  # mA
-                "max_closed_loop_current": int.from_bytes(data[11:13], "big"),  # mA
-                "max_output_voltage": int.from_bytes(data[13:15], "big"),  # mV
-                "uart_baud_rate": baud_rate,
-                "can_rate": can_rate,
-                "device_id": data[17],
-                "checksum": data[18],
-                "command_response_mode": "Acknowledge" if data[19] else "Full",
-                "stall_protection": bool(data[20]),
-                "stall_speed_threshold": stall_speed,  # RPM
-                "stall_current_threshold": stall_current,  # mA
-                "stall_detection_time": stall_time,  # ms
-                "position_arrival_window": position_window,  # degrees
+                "motor_type": "1.8°"
+                if data[0] == 0x19
+                else "0.9°"
+                if data[0] == 0x32
+                else f"Unknown (0x{data[0]:02X})",
+                "pulse_control_mode": data[1],
+                "communication_mode": data[2],
+                "en_pin_level": data[3],
+                "dir_pin_direction": "CW" if data[4] == 0 else "CCW",
+                "subdivision": 256 if data[5] == 0 else data[5],
+                "subdivision_interpolation": bool(data[6]),
+                "auto_screen_off": bool(data[7]),
+                "open_loop_current": int.from_bytes(data[8:10], "big"),
+                "max_closed_loop_current": int.from_bytes(data[10:12], "big"),
+                "max_output_voltage": int.from_bytes(data[12:14], "big"),
+                "uart_baud_rate": {
+                    1: 9600,
+                    2: 19200,
+                    3: 38400,
+                    4: 57600,
+                    5: 115200,
+                }.get(data[14], f"Unknown (0x{data[14]:02X})"),
+                "can_rate": {
+                    1: 10000,
+                    2: 20000,
+                    3: 50000,
+                    4: 100000,
+                    5: 125000,
+                    6: 250000,
+                    7: 500000,
+                    8: 1000000,
+                }.get(data[15], f"Unknown (0x{data[15]:02X})"),
+                "device_id": data[16],
+                "checksum": data[17],
+                "command_response_mode": "Acknowledge" if data[18] else "Full",
+                "stall_protection": bool(data[19]),
+                "stall_speed_threshold": int.from_bytes(data[20:22], "big"),
+                "stall_current_threshold": int.from_bytes(data[22:24], "big"),
+                "stall_detection_time": int.from_bytes(data[24:26], "big"),
+                "position_arrival_window": int.from_bytes(data[26:28], "big") / 10.0,
             }
-
-            # Log successful parsing
-            self._logger.debug(f"Successfully parsed drive configuration: {config}")
 
             return config
 
@@ -879,28 +659,106 @@ class StepperMotor:
             raise CommandError(f"Failed to parse drive configuration: {e}")
 
     def get_system_status(self) -> dict:
-        """Get system status parameters"""
-        cmd = Command(
-            CMD.READ_SYSTEM_STATUS, data=bytes([0x7A]), description="Read system status"
+        """Get comprehensive system status parameters
+
+        Returns:
+            Dictionary containing:
+            - bus_voltage: Bus voltage in volts
+            - phase_current: Phase current in amps
+            - encoder_value: Raw encoder value (0-65535)
+            - target_position: Target position object (steps, revolutions, degrees)
+            - realtime_speed: Current speed in RPM
+            - realtime_position: Current position object (steps, revolutions, degrees)
+            - position_error: Position error object (steps, degrees)
+            - ready_status: Dictionary of ready status flags
+            - motor_status: Dictionary of motor status flags
+        """
+        cmd = self._create_command(
+            CMD_CODE.READ_SYSTEM_STATUS,
+            data=bytes([0x7A]),
+            description="Read system status",
         )
         result = self._execute(cmd)
-        if result.success and result.data:
-            # Parse the complex status data structure
-            # Example implementation - adjust based on actual data format
+
+        if not result.success or not result.data:
+            raise CommandError("Failed to read system status")
+
+        try:
+            data = result.data
+
+            # Debug log the raw data
+            self._logger.debug(f"System status raw data: {data.hex(' ').upper()}")
+
+            # Parse each field
+            bus_voltage = int.from_bytes(data[0:2], "big") / 1000.0
+            phase_current = int.from_bytes(data[2:4], "big") / 1000.0
+            encoder_value = int.from_bytes(data[4:6], "big")
+
+            # Target position (5 bytes: sign + value)
+            target_sign = -1 if data[6] else 1
+            target_steps = target_sign * int.from_bytes(data[7:11], "big")
+            target_position = Position(
+                steps=target_steps,
+                revolutions=target_steps // 65536,
+                degrees=(abs(target_steps) % 65536) * 360 / 65536,
+            )
+
+            # Real-time speed (3 bytes: sign + value)
+            speed_sign = -1 if data[11] else 1
+            realtime_speed = speed_sign * int.from_bytes(data[12:14], "big")
+
+            # Real-time position (5 bytes: sign + value)
+            position_sign = -1 if data[14] else 1
+            position_steps = position_sign * int.from_bytes(data[15:19], "big")
+            realtime_position = Position(
+                steps=position_steps,
+                revolutions=position_steps // 65536,
+                degrees=(abs(position_steps) % 65536) * 360 / 65536,
+            )
+
+            # Position error (5 bytes: sign + value)
+            error_sign = -1 if data[19] else 1
+            error_steps = error_sign * int.from_bytes(data[20:24], "big")
+
+            # Status flags
+            ready_status = data[24]
+            motor_status = data[25]
+
             return {
-                "bus_voltage": int.from_bytes(result.data[0:2], "big") / 1000.0,
-                "phase_current": int.from_bytes(result.data[2:4], "big") / 1000.0,
-                "encoder_value": int.from_bytes(result.data[4:6], "big"),
-                "position": int.from_bytes(result.data[6:10], "big", signed=True),
-                "speed": int.from_bytes(result.data[10:12], "big", signed=True),
-                "status_flags": result.data[12],
-                # Add other status parameters as needed
+                "bus_voltage": bus_voltage,
+                "phase_current": phase_current,
+                "encoder_value": encoder_value,
+                "target_position": target_position,
+                "realtime_speed": realtime_speed,
+                "realtime_position": realtime_position,
+                "position_error": {
+                    "steps": error_steps,
+                    "degrees": (abs(error_steps) % 65536) * 360 / 65536,
+                },
+                "ready_status": {
+                    "encoder_ready": bool(ready_status & 0x01),
+                    "calibration_ready": bool(ready_status & 0x02),
+                    "homing_in_progress": bool(ready_status & 0x04),
+                    "homing_failed": bool(ready_status & 0x08),
+                },
+                "motor_status": {
+                    "enabled": bool(motor_status & 0x01),
+                    "position_reached": bool(motor_status & 0x02),
+                    "stalled": bool(motor_status & 0x04),
+                    "protection_triggered": bool(motor_status & 0x08),
+                },
             }
-        raise CommandError("Failed to read system status")
+
+        except Exception as e:
+            self._logger.error(f"Error parsing system status: {e}")
+            self._logger.debug(f"Raw data: {data.hex(' ').upper()}")
+            raise CommandError(f"Failed to parse system status: {e}")
 
     def get_version(self) -> str:
         """Get firmware version string"""
-        cmd = Command(CMD.READ_VERSION, description="Read firmware version")
+        cmd = self._create_command(
+            CMD_CODE.READ_VERSION, description="Read firmware version"
+        )
         result = self._execute(cmd)
         if result.success and result.data:
             # Convert bytes to string, assuming ASCII encoding
@@ -989,3 +847,14 @@ class StepperMotor:
             relative=relative,
             sync=sync,
         )
+
+    def factory_reset(self) -> None:
+        """Reset to factory settings"""
+        cmd = self._create_command(
+            CMD_CODE.FACTORY_RESET,
+            data=bytes([0x5F]),
+            requires_enabled=False,
+            description="Factory reset",
+        )
+        self._execute(cmd)
+        self._enabled = False

@@ -1,5 +1,5 @@
 from .stepper import (
-    StepperMotor,
+    Stepper,
     CMD,
     Position,
     MotorStatus,
@@ -9,7 +9,7 @@ from .stepper import (
 )
 
 __all__ = [
-    "StepperMotor",
+    "Stepper",
     "CMD",
     "Position",
     "MotorStatus",

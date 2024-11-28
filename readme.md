@@ -474,15 +474,67 @@ Notes:
 Command: Address + 0x43 + 0x7A + Checksum
 Example: 01 43 7A 6B
 Return:
-- Success: 01 43 [System_Parameters] 6B
-  Parameters include:
-  - Bus voltage
-  - Phase current
-  - Encoder value
-  - Position data
-  - Speed data
-  - Status flags
-- Error: 01 00 EE 6B
+Returns: 31 bytes total
+1. Bus Voltage:
+   - Value: 0x5C67 = 23655mV
+   - Format: 2 bytes
+
+2. Phase Current:
+   - Value: 0x0003 = 3mA
+   - Format: 2 bytes
+
+3. Calibrated Encoder:
+   - Value: 0x43EB = 17387
+   - Format: 2 bytes
+
+4. Motor Target Position:
+   - Sign: 01 (negative)
+   - Value: 0x00010000
+   - Calculation: -(65536 * 360)/65536 = -360°
+   - Format: 5 bytes (1 sign + 4 value)
+
+5. Real-time Speed:
+   - Sign: 00 (positive)
+   - Value: 0x0000 = 0 RPM
+   - Format: 3 bytes (1 sign + 2 value)
+
+6. Real-time Position:
+   - Sign: 01 (negative)
+   - Value: 0x00010000
+   - Calculation: -(65536 * 360)/65536 = -360°
+   - Format: 5 bytes (1 sign + 4 value)
+
+7. Position Error:
+   - Sign: 01 (negative)
+   - Value: 0x00000001
+   - Calculation: -(8 * 360)/65536 ≈ -0.044°
+   - Format: 5 bytes (1 sign + 4 value)
+
+8. Ready Status Flags: 0x03
+   Bit Flags:
+   - Encoder Ready: 0x03 & 0x01 = 1 (Ready)
+   - Calibration Table Ready: 0x03 & 0x02 = 1 (Ready)
+   - Homing in Progress: 0x03 & 0x04 = 0 (Not Homing)
+   - Homing Failed: 0x03 & 0x08 = 0 (No Failure)
+
+9. Motor Status Flags: 0x03
+   Bit Flags:
+   - Enable Status: 0x03 & 0x01 = 1 (Enabled)
+   - Position Reached: 0x03 & 0x02 = 1 (In Position)
+   - Motor Stall: 0x03 & 0x04 = 0 (Not Stalled)
+   - Stall Protection: 0x03 & 0x08 = 0 (Not Triggered)
+
+Total Bytes Breakdown:
+- Bus Voltage: 2 bytes
+- Phase Current: 2 bytes
+- Encoder Value: 2 bytes
+- Target Position: 5 bytes
+- Real-time Speed: 3 bytes
+- Real-time Position: 5 bytes
+- Position Error: 5 bytes
+- Ready Status: 1 byte
+- Motor Status: 1 byte
+Total: 26 + command headers and checksum = 31 bytes
 ```
 
 ### 5. Configuration Commands
