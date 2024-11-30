@@ -302,7 +302,6 @@ class StepperStatus:
             "stall_protection": self.stall_protection,
         }
 
-
 class MotorType(IntEnum):
     D18 = 0x19
     D09 = 0x32
@@ -322,6 +321,7 @@ class ControlMode(IntEnum):
     def default(self) -> int:
         return self.PUL_FOC
 
+
 class CommunicationMode(IntEnum):
     RXTX_OFF = 0x00
     ESI_AL0 = 0x01
@@ -331,7 +331,6 @@ class CommunicationMode(IntEnum):
     @property
     def default(self) -> int:
         return self.UART
-
 
 
 class EnableLevel(IntEnum):
@@ -344,6 +343,18 @@ class EnableLevel(IntEnum):
         return self.HOLD
 
 
+class Microstep(RangedInt):
+    meta = MetaParam(0, 256, 16, 1)  # 0x00 is 256 microsteps
+
+
+class MicrostepInterp(IntEnum):
+    DISABLE = 0x00
+    ENABLE = 0x01
+
+    @property
+    def default(self) -> int:
+        return self.ENABLE
+
 
 class ScreenOff(IntEnum):
     DISABLE = 0x00
@@ -354,73 +365,16 @@ class ScreenOff(IntEnum):
         return self.DISABLE
 
 
-class Microstep(RangedInt):
-    meta = MetaParam(0, 256, 16, 1)  # 0x00 is 256 microsteps
-
-
 class OpenLoopCurrent(RangedInt):
-    meta = MetaParam(0, 65535, 0, 2)
+    meta = MetaParam(0, 2000, 800, 2)  # Unit: mA
 
 
 class ClosedLoopCurrent(RangedInt):
-    meta = MetaParam(0, 65535, 0, 2)
+    meta = MetaParam(0, 4000, 2000, 2)  # Unit: mA
 
 
 class MaxVoltage(RangedInt):
-    meta = MetaParam(0, 65535, 0, 2)
-
-
-class StallSpeed(RangedInt):
-    meta = MetaParam(0, 65535, 0, 2)
-
-
-class StallTime(RangedInt):
-    meta = MetaParam(0, 65535, 0, 2)
-
-
-class PosWindow(RangedInt):
-    meta = MetaParam(0, 65535, 0, 2)
-
-
-class EnablePin(IntEnum):
-    DISABLE = 0x00
-    ENABLE = 0x01
-
-
-
-class DefaultDir(IntEnum):
-    CW = 0x00
-    CCW = 0x01
-
-
-class SpeedReduction(IntEnum):
-    DISABLE = 0x00
-    ENABLE = 0x01
-
-
-class MicrostepInterp(IntEnum):
-    DISABLE = 0x00
-    ENABLE = 0x01
-
-
-
-class ResponseMode(IntEnum):
-    NONE = 0x00
-    RECEIVE = 0x01
-    REACHED = 0x02
-    BOTH = 0x03
-    OTHER = 0x04
-
-
-class StallProtect(IntEnum):
-    DISABLE = 0x00
-    ENABLE = 0x01
-
-
-class ChecksumMode(IntEnum):
-    FIXED = 0x00  # Fixed 0x6B
-    XOR = 0x01  # XOR of all bytes
-    CRC8 = 0x02  # CRC-8 algorithm
+    meta = MetaParam(0, 5000, 4000, 2)  # Unit: mV
 
 
 class BaudRate(IntEnum):
@@ -436,6 +390,10 @@ class BaudRate(IntEnum):
     BAUD_512000 = 0x07
     BAUD_921600 = 0x08
 
+    @property
+    def default(self) -> int:
+        return self.BAUD_115200
+
 
 class CanRate(IntEnum):
     """Supported CAN bus rates in bits per second"""
@@ -450,3 +408,69 @@ class CanRate(IntEnum):
     CAN_500K = 0x07
     CAN_800K = 0x08
     CAN_1000K = 0x09
+
+    @property
+    def default(self) -> int:
+        return self.CAN_500K
+
+
+class ChecksumMode(IntEnum):
+    FIXED = 0x00  # Fixed 0x6B
+    XOR = 0x01  # XOR of all bytes
+    CRC8 = 0x02  # CRC-8 algorithm
+
+    @property
+    def default(self) -> int:
+        return self.FIXED
+
+
+class ResponseMode(IntEnum):
+    NONE = 0x00
+    RECEIVE = 0x01  # Return ADDR + FD + 9F + CHECKSUM after receiving command
+    REACHED = 0x02  # Return ADDR + FD + 9F + CHECKSUM after reaching target
+    BOTH = 0x03  # Return ADDR + FD + 9F + CHECKSUM after both
+    OTHER = 0x04  # Return other values
+
+    @property
+    def default(self) -> int:
+        return self.RECEIVE
+
+
+class StallProtect(IntEnum):
+    DISABLE = 0x00
+    ENABLE = 0x01
+
+    @property
+    def default(self) -> int:
+        return self.ENABLE
+
+
+class StallSpeed(RangedInt):
+    meta = MetaParam(0, 500, 28, 2)  # Unit: RPM
+
+
+class StallCurrent(RangedInt):
+    meta = MetaParam(0, 3000, 2400, 2)  # Unit: mA
+
+
+class StallTime(RangedInt):
+    meta = MetaParam(0, 5000, 4000, 2)  # Unit: ms
+
+
+class PosWindow(RangedInt):
+    meta = MetaParam(0, 100, 1, 2)  # Unit: 0.1XDeg
+
+
+class EnablePin(IntEnum):
+    DISABLE = 0x00
+    ENABLE = 0x01
+
+
+class DefaultDir(IntEnum):
+    CW = 0x00
+    CCW = 0x01
+
+
+class SpeedReduction(IntEnum):
+    DISABLE = 0x00
+    ENABLE = 0x01

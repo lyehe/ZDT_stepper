@@ -19,6 +19,7 @@ from stepper_constants import (
     Microstep,
     MicrostepInterp,
     ScreenOff,
+    HomingStatus,
 )
 from stepper_command import Command, _int, _signed_int
 import math
@@ -606,20 +607,20 @@ class GetConfig(Command):
             "param_count": response[3],
             "motor_type": MotorType(response[4]).name,
             "control_mode": ControlMode(response[5]).name,
-            "comm_mode": CommunicationMode(response[6]).name,
+            "communication_mode": CommunicationMode(response[6]).name,
             "enable_level": EnableLevel(response[7]).name,
             "direction": Direction(response[8]).name,
             "microsteps": Microstep(response[9]),
             "microstep_interp": MicrostepInterp(response[10]).name,
             "screen_off": ScreenOff(response[11]),
             "open_loop_current": _int(response[12:14]),
-            "closed_loop_current": _int(response[14:16]),
+            "max_closed_loop_current": _int(response[14:16]),
             "max_voltage": _int(response[16:18]),
-            "baud_rate": BaudRate(response[18]),
-            "can_rate": CanRate(response[19]),
+            "baud_rate": BaudRate(response[18]).name,
+            "can_rate": CanRate(response[19]).name,
             "id_addr": Address(response[20]),
-            "checksum_mode": ChecksumMode(response[21]),
-            "response_mode": ResponseMode(response[22]),
+            "checksum_mode": ChecksumMode(response[21]).name,
+            "response_mode": ResponseMode(response[22]).name,
             "stall_protect": StallProtect(response[23]),
             "stall_speed": _int(response[24:26]),
             "stall_current": _int(response[26:28]),
@@ -641,30 +642,30 @@ class GetConfig(Command):
         return tuple(response.values())
 
     @property
-    def parameter_dict(self) -> dict[str, int]:
+    def parameter_dict(self) -> dict[str, float | str]:
         response = self.response
         return {
             "motor_type": MotorType(response[4]).name,
             "control_mode": ControlMode(response[5]).name,
-            "comm_mode": CommunicationMode(response[6]).name,
+            "communication_mode": CommunicationMode(response[6]).name,
             "enable_level": EnableLevel(response[7]).name,
             "direction": Direction(response[8]).name,
             "microsteps": Microstep(response[9]),
             "microstep_interp": MicrostepInterp(response[10]).name,
             "screen_off": ScreenOff(response[11]).name,
-            "open_loop_current": _int(response[12:14]),
-            "closed_loop_current": _int(response[14:16]),
-            "max_voltage": _int(response[16:18]),
+            "open_loop_current (A)": _int(response[12:14]) * 0.001,
+            "max_closed_loop_current (A)": _int(response[14:16]) * 0.001,
+            "max_voltage (V)": _int(response[16:18]) * 0.001,
             "baud_rate": BaudRate(response[18]).name,
             "can_rate": CanRate(response[19]).name,
-            "id_addr": response[20],
+            "id_addr": Address(response[20]),
             "checksum_mode": ChecksumMode(response[21]).name,
             "response_mode": ResponseMode(response[22]).name,
             "stall_protect": StallProtect(response[23]).name,
-            "stall_speed": _int(response[24:26]),
-            "stall_current": _int(response[26:28]),
-            "stall_time": _int(response[28:30]),
-            "pos_window": _int(response[30:32]),  # 0.1XDeg
+            "stall_speed (RPM)": _int(response[24:26]),
+            "stall_current (A)": _int(response[26:28]) * 0.001,
+            "stall_time (s)": _int(response[28:30]) * 0.001,
+            "pos_window (deg)": _int(response[30:32]) * 0.1,
         }
 
 
@@ -684,10 +685,10 @@ class GetSysStatus(Command):
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": response[0],
-            "code": response[1],
-            "protocol_1": response[2],
-            "protocol_2": response[3],
+            "addr": Address(response[0]),
+            "code": Code(response[1]),
+            "byte_length": response[2],
+            "param_count": response[3],
             "bus_voltage": _int(response[4:6]),
             "bus_phase_current": _int(response[6:8]),
             "calibrated_encoder_value": _int(response[8:10]),
@@ -695,7 +696,28 @@ class GetSysStatus(Command):
             "motor_real_time_speed": _signed_int(response[15:18]),
             "motor_real_time_position": _signed_int(response[18:23]),
             "motor_position_error": _signed_int(response[23:28]),
-            "ready_status": response[28],
-            "motor_status": response[29],
+            "homing_status": HomingStatus(response[28]),
+            "motor_status": StepperStatus(response[29]),
             "checksum": response[30],
+        }
+
+    @property
+    def parameter_dict(self) -> dict[str, float | bool]:
+        response = self.response_dict.copy()
+        return {
+            "bus_voltage (V)": _int(response[4:6]) * 0.001,
+            "bus_phase_current (A)": _int(response[6:8]) * 0.001,
+            "calibrated_encoder_value (deg)": _int(response[8:10]) * 0.1,
+            "motor_target_position (deg)": _signed_int(response[10:15]) * 0.1,
+            "motor_real_time_speed (RPM)": _signed_int(response[15:18]),
+            "motor_real_time_position (deg)": _signed_int(response[18:23]) * 0.1,
+            "motor_position_error (deg)": _signed_int(response[23:28]) * 0.1,
+            "homing_encoder_ready": HomingStatus(response[28]).encoder_ready,
+            "homing_encoder_calibrated": HomingStatus(response[28]).encoder_calibrated,
+            "homing_is_homing": HomingStatus(response[28]).is_homing,
+            "homing_failed": HomingStatus(response[28]).homing_failed,
+            "stepper_enabled": StepperStatus(response[29]).enabled,
+            "stepper_in_position": StepperStatus(response[29]).in_position,
+            "stepper_stalled": StepperStatus(response[29]).stalled,
+            "stepper_stall_protection": StepperStatus(response[29]).stall_protection,
         }
