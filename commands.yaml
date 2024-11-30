@@ -1,0 +1,721 @@
+enable:
+  input:
+    addr: 1
+    code: b"\xF3"
+    enable_code: b"\xAB"
+    enable_status: 1
+    sync: 1
+    checksum: 1
+    length: 6
+  output:
+    addr: 1
+    code: b"\xF3"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\xF3"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Condition not met"
+
+jog:
+  input:
+    addr: 1
+    code: b"\xF6"
+    direction: 1
+    speed: 2
+    acceleration: 1
+    sync: 1
+    checksum: 1
+    length: 8
+  output:
+    addr: 1
+    code: b"\xF6"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\xF6"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Stall protection triggered"
+    - "Motor not enabled"
+
+move:
+  input:
+    addr: 1
+    code: b"\xFD"
+    direction: 1
+    speed: 2
+    acceleration: 1
+    pulse_count: 4
+    relative_absolute_mode: 1
+    sync: 1
+    checksum: 1
+    length: 13
+  output:
+    addr: 1
+    code: b"\xFD"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\xFD"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Stall protection triggered"
+    - "Motor not enabled"
+
+estop:
+  input:
+    addr: 1
+    code: b"\xFE"
+    stop_code: b"\x98"
+    sync: 1
+    checksum: 1
+    length: 5
+  output:
+    addr: 1
+    code: b"\xFE"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\xFE"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Stall protection triggered"
+    - "Motor not enabled"
+
+sync_move:
+  input:
+    addr: 1
+    code: b"\xFF"
+    sync_code: b"\x66"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\xFF"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\xFF"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Stall protection triggered"
+    - "Motor not enabled"
+
+set_home:
+  input:
+    addr: 1
+    code: b"\x93"
+    home_code: b"\x88"
+    store: 1
+    checksum: 1
+    length: 5
+  output:
+    addr: 1
+    code: b"\x93"
+    status: 1
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Stall protection triggered"
+    - "Motor not enabled"
+
+home:
+  input:
+    addr: 1
+    code: b"\x9A"
+    homing_mode: 1
+    sync: 1
+    checksum: 1
+    length: 5
+  output:
+    addr: 1
+    code: b"\x9A"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\x9A"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Stall protection triggered"
+    - "Motor not enabled"
+    - "Single-turn home position value invalid"
+
+stop_home:
+  input:
+    addr: 1
+    code: b"\x9C"
+    abort_code: b"\x48"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x9C"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\x9C"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "No homing operation currently triggered"
+
+get_home_param:
+  input:
+    addr: 1
+    code: b"\x22"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x22"
+    homing_mode: 1
+    homing_direction: 1
+    homing_speed: 2
+    homing_timeout: 4
+    collision_detection_speed: 2
+    collision_detection_current: 2
+    collision_detection_time: 2
+    auto_home: 1
+    checksum: 1
+    length: 18
+
+set_home_param:
+  input:
+    addr: 1
+    code: b"\x4C"
+    param_code: b"\xAE"
+    store: 1
+    homing_mode: 1
+    homing_direction: 1
+    homing_speed: 2
+    homing_timeout: 4
+    collision_detection_speed: 2
+    collision_detection_current: 2
+    collision_detection_time: 2
+    auto_home: 1
+    checksum: 1
+    length: 20
+  output:
+    addr: 1
+    code: b"\x4C"
+    status: 1
+    checksum: 1
+    length: 4
+
+get_home_status:
+  input:
+    addr: 1
+    code: b"\x3B"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x3B"
+    homing_status: 1
+    checksum: 1
+    length: 4
+
+cal_encoder:
+  input:
+    addr: 1
+    code: b"\x06"
+    cal_code: b"\x45"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x06"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\x06"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "Current is open loop mode"
+    - "Stall protection triggered"
+
+clear_pos:
+  input:
+    addr: 1
+    code: b"\x0A"
+    clear_code: b"\x6D"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x0A"
+    status: 1
+    checksum: 1
+    length: 4
+
+clear_stall:
+  input:
+    addr: 1
+    code: b"\x0E"
+    clear_code: b"\x52"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x0E"
+    status: 1
+    checksum: 1
+    length: 4
+  condition_err:
+    addr: 1
+    code: b"\x0E"
+    error_code: b"\xE2"
+    checksum: 1
+    length: 4
+  conditions_not_met:
+    - "No stall protection triggered"
+
+reset:
+  input:
+    addr: 1
+    code: b"\x0F"
+    reset_code: b"\x5F"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x0F"
+    status: 1
+    checksum: 1
+    length: 4
+
+get_version:
+  input:
+    addr: 1
+    code: b"\x1F"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x1F"
+    firmware_version: 1
+    hardware_version: 1
+    checksum: 1
+    length: 5
+
+get_motor_param:
+  input:
+    addr: 1
+    code: b"\x20"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x20"
+    phase_resistance: 2
+    phase_inductance: 2
+    checksum: 1
+    length: 7
+
+get_pid:
+  input:
+    addr: 1
+    code: b"\x21"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x21"
+    kp: 4
+    ki: 4
+    kd: 4
+    checksum: 1
+    length: 15
+
+get_voltage:
+  input:
+    addr: 1
+    code: b"\x24"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x24"
+    bus_voltage: 2
+    checksum: 1
+    length: 5
+
+get_current:
+  input:
+    addr: 1
+    code: b"\x27"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x27"
+    bus_phase_current: 2
+    checksum: 1
+    length: 5
+
+get_encoder:
+  input:
+    addr: 1
+    code: b"\x31"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x31"
+    calibrated_encoder_value: 2
+    checksum: 1
+    length: 5
+
+get_pulse:
+  input:
+    addr: 1
+    code: b"\x32"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x32"
+    pulse_sign: 1
+    input_pulse_count: 4
+    checksum: 1
+    length: 8
+
+get_target:
+  input:
+    addr: 1
+    code: b"\x33"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x33"
+    target_sign: 1
+    motor_target_position: 4
+    checksum: 1
+    length: 8
+
+get_setpoint:
+  input:
+    addr: 1
+    code: b"\x34"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x34"
+    setpoint_sign: 1
+    motor_target_position: 4
+    checksum: 1
+    length: 8
+
+get_speed:
+  input:
+    addr: 1
+    code: b"\x35"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x35"
+    speed_sign: 1
+    motor_real_time_speed: 2
+    checksum: 1
+    length: 6
+
+get_pos:
+  input:
+    addr: 1
+    code: b"\x36"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x36"
+    pos_sign: 1
+    motor_real_time_position: 4
+    checksum: 1
+    length: 8
+
+get_error:
+  input:
+    addr: 1
+    code: b"\x37"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x37"
+    error_sign: 1
+    motor_position_error: 4
+    checksum: 1
+    length: 8
+
+get_status:
+  input:
+    addr: 1
+    code: b"\x3A"
+    checksum: 1
+    length: 3
+  output:
+    addr: 1
+    code: b"\x3A"
+    status: 1
+    checksum: 1
+    length: 4
+
+get_config:
+  input:
+    addr: 1
+    code: b"\x42"
+    config_code: b"\x6C"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x42"
+    total_bytes: b"\x21"
+    total_params: b"\x15"
+    motor_type: 1
+    control_mode: 1
+    comm_mode: 1
+    en_level: 1
+    dir_level: 1
+    microsteps: 1
+    microstep_interp: 1
+    screen_off: 1
+    open_loop_current: 2
+    closed_loop_current: 2
+    max_voltage: 2
+    baud_rate: 1
+    can_rate: 1
+    id_addr: 1
+    verify_mode: 1
+    response_mode: 1
+    stall_protect: 1
+    stall_speed: 2
+    stall_current: 2
+    stall_time: 2
+    pos_window: 2
+    checksum: 1
+    length: 33
+
+get_sys_status:
+  input:
+    addr: 1
+    code: b"\x43"
+    status_code: b"\x7A"
+    checksum: 1
+    length: 4
+  output:
+    addr: 1
+    code: b"\x43"
+    total_bytes: b"\x1F"
+    total_params: b"\x09"
+    bus_voltage: 2
+    bus_phase_current: 2
+    calibrated_encoder_value: 2
+    target_sign: 1
+    motor_target_position: 4
+    speed_sign: 1
+    motor_real_time_speed: 2
+    pos_sign: 1
+    motor_real_time_position: 4
+    error_sign: 1
+    motor_position_error: 4
+    ready_status: 1
+    motor_status: 1
+    checksum: 1
+    length: 31
+
+set_microstep:
+  input:
+    addr: 1
+    code: b"\x84"
+    microstep_code: b"\x8A"
+    store: 1
+    microstep_value: 1
+    checksum: 1
+    length: 6
+  output:
+    addr: 1
+    code: b"\x84"
+    status: 1
+    checksum: 1
+    length: 4
+
+set_id:
+  input:
+    addr: 1
+    code: b"\xAE"
+    id_code: b"\x4B"
+    store: 1
+    id_addr: 1
+    checksum: 1
+    length: 6
+  output:
+    addr: 1
+    code: b"\xAE"
+    status: 1
+    checksum: 1
+    length: 4
+
+set_mode:
+  input:
+    addr: 1
+    code: b"\x46"
+    mode_code: b"\x69"
+    store: 1
+    control_mode: 1
+    checksum: 1
+    length: 6
+  output:
+    addr: 1
+    code: b"\x46"
+    status: 1
+    checksum: 1
+    length: 4
+
+set_current:
+  input:
+    addr: 1
+    code: b"\x44"
+    current_code: b"\x33"
+    store: 1
+    open_loop_current: 2
+    checksum: 1
+    length: 7
+  output:
+    addr: 1
+    code: b"\x44"
+    status: 1
+    checksum: 1
+    length: 4
+
+set_config:
+  input:
+    addr: 1
+    code: b"\x48"
+    config_code: b"\xD1"
+    store: 1
+    motor_type: 1
+    control_mode: 1
+    comm_mode: 1
+    en_level: 1
+    dir_level: 1
+    microsteps: 1
+    microstep_interp: 1
+    screen_off: 1
+    open_loop_current: 2
+    closed_loop_current: 2
+    max_voltage: 2
+    baud_rate: 1
+    can_rate: 1
+    id_addr: 1
+    verify_mode: 1
+    response_mode: 1
+    stall_protect: 1
+    stall_speed: 2
+    stall_current: 2
+    stall_time: 2
+    pos_window: 2
+    checksum: 1
+    length: 33
+  output:
+    addr: 1
+    code: b"\x48"
+    status: 1
+    checksum: 1
+    length: 4
+
+set_pid:
+  input:
+    addr: 1
+    code: b"\x4A"
+    pid_code: b"\xC3"
+    store: 1
+    kp: 4
+    ki: 4
+    kd: 4
+    checksum: 1
+    length: 16
+  output:
+    addr: 1
+    code: b"\x4A"
+    status: 1
+    checksum: 1
+    length: 4
+
+save_speed:
+  input:
+    addr: 1
+    code: b"\xF7"
+    speed_code: b"\x1C"
+    store: 1
+    direction: 1
+    speed: 2
+    acceleration: 1
+    en_control: 1
+    checksum: 1
+    length: 9
+  output:
+    addr: 1
+    code: b"\xF7"
+    status: 1
+    checksum: 1
+    length: 4
+
+set_reduction:
+  input:
+    addr: 1
+    code: b"\x4F"
+    reduction_code: b"\x71"
+    store: 1
+    speed_reduction: 1
+    checksum: 1
+    length: 6
+  output:
+    addr: 1
+    code: b"\x4F"
+    status: 1
+    checksum: 1
+    length: 4
+
+error_codes:
+  addr: 1
+  code: b"\x00"
+  error_code: b"\xEE"
+  checksum: 1
+  length: 4
