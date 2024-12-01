@@ -580,7 +580,7 @@ class SerialController:
             - device_id: Device ID (1-255)
             - checksum: Communication checksum
             - command_response_mode: 'Full' or 'Acknowledge'
-            - stall_protection: True/False
+            - stall_protection_active: True/False
             - stall_speed_threshold: Speed in RPM
             - stall_current_threshold: Current in mA
             - stall_detection_time: Time in ms
@@ -644,7 +644,7 @@ class SerialController:
                 "device_id": data[16],
                 "checksum": data[17],
                 "command_response_mode": "Acknowledge" if data[18] else "Full",
-                "stall_protection": bool(data[19]),
+                "stall_protection_active": bool(data[19]),
                 "stall_speed_threshold": int.from_bytes(data[20:22], "big"),
                 "stall_current_threshold": int.from_bytes(data[22:24], "big"),
                 "stall_detection_time": int.from_bytes(data[24:26], "big"),

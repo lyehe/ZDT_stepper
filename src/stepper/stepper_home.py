@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from logging import getLogger
-from .stepper_command import Command, _int
+from .stepper_command import Command, BroadcastCommand, _int
 from .stepper_constants import (
     Code,
     Protocol,
@@ -28,7 +28,7 @@ class SetHome(Command):
     :param store: Store flag
     """
 
-    store: StoreFlag
+    store: StoreFlag = StoreFlag.default
 
     @property
     def code(self) -> Code:
@@ -40,6 +40,11 @@ class SetHome(Command):
 
 
 @dataclass
+class SetHomeAll(SetHome, BroadcastCommand):
+    """Set home all command configuration"""
+
+
+@dataclass
 class Home(Command):
     """Home command configuration
 
@@ -47,8 +52,8 @@ class Home(Command):
     :param sync: Sync flag
     """
 
-    homing_mode: HomingMode
-    sync: SyncFlag
+    homing_mode: HomingMode = HomingMode.default
+    sync: SyncFlag = SyncFlag.default
 
     @property
     def code(self) -> Code:
@@ -57,6 +62,11 @@ class Home(Command):
     @property
     def command(self) -> bytes:
         return bytes([self.addr, self.code, self.homing_mode, self.sync])
+
+
+@dataclass
+class HomeAll(Home, BroadcastCommand):
+    """Home all command configuration"""
 
 
 @dataclass
@@ -119,15 +129,17 @@ class SetHomeParam(Command):
     :param auto_home: Auto home flag
     """
 
-    store: StoreFlag
-    homing_mode: HomingMode
-    homing_direction: HomingDirection
-    homing_speed: HomingSpeed
-    homing_timeout: HomingTimeout
-    collision_detection_speed: CollisionDetectionSpeed
-    collision_detection_current: CollisionDetectionCurrent
-    collision_detection_time: CollisionDetectionTime
-    auto_home: AutoHoming
+    store: StoreFlag = StoreFlag.default
+    homing_mode: HomingMode = HomingMode.default
+    homing_direction: HomingDirection = HomingDirection.default
+    homing_speed: HomingSpeed = HomingSpeed.default
+    homing_timeout: HomingTimeout = HomingTimeout.default
+    collision_detection_speed: CollisionDetectionSpeed = CollisionDetectionSpeed.default
+    collision_detection_current: CollisionDetectionCurrent = (
+        CollisionDetectionCurrent.default
+    )
+    collision_detection_time: CollisionDetectionTime = CollisionDetectionTime.default
+    auto_home: AutoHoming = AutoHoming.default
 
     @property
     def code(self) -> Code:
@@ -174,3 +186,11 @@ class GetHomeStatus(Command):
             "homing_status": HomingStatus(response[2]).name,
             "checksum": response[3],
         }
+
+    @property
+    def homing_status(self) -> HomingStatus:
+        return HomingStatus(self.response_dict["homing_status"])
+
+    @property
+    def parameter_dict(self) -> dict[str, bool]:
+        return asdict(self.homing_status)

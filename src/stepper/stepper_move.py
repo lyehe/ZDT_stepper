@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from logging import getLogger
-from .stepper_command import Command
+from .stepper_command import Command, BroadcastCommand, _add_checksum
 from stepper_constants import (
     Code,
     Protocol,
@@ -17,15 +17,20 @@ logger = getLogger(__name__)
 
 
 @dataclass
-class Enable(Command):
-    """Enable command configuration
+class MoveCommand(Command):
+    """Move command configuration"""
+
+    sync: SyncFlag = SyncFlag.default
+
+
+@dataclass
+class Enable(MoveCommand):
+    """Enable command
 
     :param enable_status: Enable status flag
-    :param sync: Sync flag
     """
 
-    enable_status: EnableFlag
-    sync: SyncFlag
+    enable_status: EnableFlag = EnableFlag.ENABLE
 
     @property
     def code(self) -> Code:
@@ -39,7 +44,22 @@ class Enable(Command):
 
 
 @dataclass
-class Jog(Command):
+class Disable(MoveCommand):
+    """Disable command, releases the motor from the enable state"""
+
+    @property
+    def code(self) -> Code:
+        return Code.ENABLE
+
+    @property
+    def command(self) -> bytes:
+        return bytes(
+            [self.addr, self.code, Protocol.ENABLE, EnableFlag.DISABLE, self.sync]
+        )
+
+
+@dataclass
+class Jog(MoveCommand):
     """Jog command configuration
 
     :param direction: Movement direction
@@ -48,10 +68,9 @@ class Jog(Command):
     :param sync: Sync flag
     """
 
-    direction: Direction
-    speed: Speed
-    acceleration: Acceleration
-    sync: SyncFlag
+    direction: Direction = Direction.default
+    speed: Speed = Speed.default
+    acceleration: Acceleration = Acceleration.default
 
     @property
     def code(self) -> Code:
@@ -72,7 +91,35 @@ class Jog(Command):
 
 
 @dataclass
-class Move(Command):
+class JogCW(Jog):
+    """Jog in the clockwise direction"""
+
+    direction: Direction = field(default=Direction.CW, init=False)
+
+
+@dataclass
+class JogCCW(Jog):
+    """Jog in the counterclockwise direction"""
+
+    direction: Direction = field(default=Direction.CCW, init=False)
+
+
+@dataclass
+class JogStop(Jog):
+    """Stops the jog movement"""
+
+    speed: Speed = field(default=Speed.stop, init=False)
+
+
+@dataclass
+class JogStopAll(Jog, BroadcastCommand):
+    """Stops all jog movements across all devices"""
+
+    speed: Speed = field(default=Speed.stop, init=False)
+
+
+@dataclass
+class Move(MoveCommand):
     """Move command configuration
 
     :param direction: Movement direction
@@ -83,12 +130,11 @@ class Move(Command):
     :param sync: Sync flag
     """
 
-    direction: Direction
-    speed: Speed
-    acceleration: Acceleration
-    pulse_count: PulseCount
-    mode: AbsoluteFlag
-    sync: SyncFlag
+    direction: Direction = Direction.default
+    speed: Speed = Speed.default
+    acceleration: Acceleration = Acceleration.default
+    pulse_count: PulseCount = PulseCount.default
+    mode: AbsoluteFlag = AbsoluteFlag.default
 
     @property
     def code(self) -> Code:
@@ -111,13 +157,45 @@ class Move(Command):
 
 
 @dataclass
-class EStop(Command):
+class GoTo(Move):
+    """Go to command configuration"""
+
+    mode: AbsoluteFlag = field(default=AbsoluteFlag.ABSOLUTE, init=False)
+
+
+@dataclass
+class MoveDeg(Move):
+    """Move command configuration in degrees
+
+    :param degrees: Number of degrees to move
+    """
+
+    degrees: float
+    microstep_per_degree: float
+    mode: AbsoluteFlag = field(default=AbsoluteFlag.RELATIVE, init=False)
+
+    def __post_init__(self):
+        if self.degrees < 0:
+            self.direction = Direction.CCW
+        else:
+            self.direction = Direction.CW
+        self.pulse_count = PulseCount(self.degrees * self.microstep_per_degree)
+        self.send_command = _add_checksum(self.checksum_mode, self.command)
+
+
+@dataclass
+class GotoDeg(MoveDeg):
+    """Go to command configuration in degrees"""
+
+    mode: AbsoluteFlag = field(default=AbsoluteFlag.ABSOLUTE, init=False)
+
+
+@dataclass
+class EStop(MoveCommand):
     """Emergency stop command configuration
 
     :param sync: Sync flag
     """
-
-    sync: SyncFlag
 
     @property
     def code(self) -> Code:
@@ -126,6 +204,11 @@ class EStop(Command):
     @property
     def command(self) -> bytes:
         return bytes([self.addr, self.code, Protocol.ESTOP, self.sync])
+
+
+@dataclass
+class EStopAll(EStop, BroadcastCommand):
+    """Emergency stop command configuration for all devices"""
 
 
 @dataclass

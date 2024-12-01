@@ -11,10 +11,24 @@ logger = getLogger(__name__)
 
 
 @dataclass
-class CalibrateEncoder(Command):
-    """Calibrate encoder command configuration"""
+class SystemCommand(Command):
+    """System command configuration requiring confirmation"""
 
     confirm: bool = False
+
+    def _check_confirm(self, command: bytes) -> bytes:
+        if self.confirm:
+            return command
+        else:
+            logger.warning(
+                f"{self.code.name} not confirmed. Please set confirm to True."
+            )
+            raise CommandError(f"{self.code.name} not confirmed")
+
+
+@dataclass
+class CalibrateEncoder(SystemCommand):
+    """Calibrate encoder command configuration"""
 
     @property
     def code(self) -> Code:
@@ -22,37 +36,27 @@ class CalibrateEncoder(Command):
 
     @property
     def command(self) -> bytes:
-        if self.confirm:
-            return bytes([self.addr, self.code, Protocol.CAL_ENCODER])
-        else:
-            logger.warning("Encoder calibration not confirmed")
-            raise CommandError("Encoder calibration not confirmed")
+        return self._check_confirm(bytes([self.addr, self.code, Protocol.CAL_ENCODER]))
 
 
 @dataclass
-class ClearPosition(Command):
-    """Clear position command configuration"""
-
-    confirm: bool = False
+class ZeroAllPositions(SystemCommand):
+    """Zero all positions command configuration"""
 
     @property
     def code(self) -> Code:
-        return Code.CLEAR_POS
+        return Code.ZERO_ALL_POSITIONS
 
     @property
     def command(self) -> bytes:
-        if self.confirm:
-            return bytes([self.addr, self.code, Protocol.CLEAR_POS])
-        else:
-            logger.warning("Clear position not confirmed")
-            raise CommandError("Clear position not confirmed")
+        return self._check_confirm(
+            bytes([self.addr, self.code, Protocol.ZERO_ALL_POSITIONS])
+        )
 
 
 @dataclass
-class ClearStall(Command):
+class ClearStall(SystemCommand):
     """Clear stall command configuration"""
-
-    confirm: bool = False
 
     @property
     def code(self) -> Code:
@@ -60,27 +64,19 @@ class ClearStall(Command):
 
     @property
     def command(self) -> bytes:
-        if self.confirm:
-            return bytes([self.addr, self.code, Protocol.CLEAR_STALL])
-        else:
-            logger.warning("Clear stall not confirmed")
-            raise CommandError("Clear stall not confirmed")
+        return self._check_confirm(bytes([self.addr, self.code, Protocol.CLEAR_STALL]))
 
 
 @dataclass
-class FactoryReset(Command):
+class FactoryReset(SystemCommand):
     """Factory reset command configuration"""
-
-    confirm: bool = False
 
     @property
     def code(self) -> Code:
-        return Code.RESET
+        return Code.FACTORY_RESET
 
     @property
     def command(self) -> bytes:
-        if self.confirm:
-            return bytes([self.addr, self.code, Protocol.RESET])
-        else:
-            logger.warning("Factory reset not confirmed")
-            raise CommandError("Factory reset not confirmed")
+        return self._check_confirm(
+            bytes([self.addr, self.code, Protocol.FACTORY_RESET])
+        )
