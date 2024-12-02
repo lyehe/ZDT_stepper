@@ -691,7 +691,7 @@ class GetConfig(GetCommand):
             "stall_speed": _int(response[24:26]),
             "stall_current": _int(response[26:28]),
             "stall_time": _int(response[28:30]),
-            "pos_window": _int(response[30:32]),  # 0.1XDeg
+            "on_target_window": _int(response[30:32]),  # 0.1XDeg
             "checksum": response[32],
         }
 

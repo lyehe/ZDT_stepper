@@ -812,60 +812,15 @@ class TimeUnit(OptionEnum):
     def default(self) -> int:
         return self.ms
 
-
 @dataclass
-class DeviceConfig:
-    """Device configuration class for stepper motor settings
+class DefaultParameters:
+    """Default parameters for configuration commands"""
 
-    :param motor_type: Type of motor (stepper, servo, etc)
-    :param control_mode: Control mode (open loop, closed loop, etc)
-    :param communication_mode: Communication mode (UART, CAN, etc)
-    :param enable_level: Enable pin active level (high, low)
-    :param default_direction: Default motor direction
-    :param microsteps: Microstep resolution
-    :param microstep_interp: Microstep interpolation setting
-    :param screen_off: Screen off timeout setting
-    :param open_loop_current: Current setting for open loop mode
-    :param closed_loop_current: Current setting for closed loop mode
-    :param max_voltage: Maximum voltage setting
-    :param baud_rate: UART baud rate
-    :param can_rate: CAN bus rate
-    :param device_id: Device address/ID
-    :param checksum_mode: Checksum verification mode
-    :param response_mode: Command response mode
-    :param stall_protect: Stall protection setting
-    :param stall_speed: Speed threshold for stall detection
-    :param stall_current: Current threshold for stall detection
-    :param stall_time: Time threshold for stall detection
-    :param on_target_window: Position error window for on-target detection
-    """
+    open_loop_current: int = 1000
+    max_closed_loop_current: int = 1000
+    max_voltage: int = 4000
+    stall_speed: int = 28
+    stall_current: int = 2400
+    stall_time: int = 4000
+    pos_window: int = 1
 
-    device_id: Address = Address.default  # OptionEnum: 0-255
-    motor_type: MotorType = MotorType.default  # OptionEnum: STEPPER, SERVO
-    control_mode: ControlMode = (
-        ControlMode.default
-    )  # OptionEnum: OPEN_LOOP, CLOSED_LOOP
-    communication_mode: CommunicationMode = (
-        CommunicationMode.default
-    )  # OptionEnum: UART, CAN
-    enable_level: EnableLevel = EnableLevel.default  # OptionEnum: HIGH, LOW
-    default_direction: DefaultDir = DefaultDir.default  # OptionEnum: CW, CCW
-    microsteps: Microstep = Microstep.default  # OptionEnum: 1-256
-    microstep_interp: MicrostepInterp = MicrostepInterp.default  # OptionEnum: ON, OFF
-    screen_off: ScreenOff = ScreenOff.default  # OptionEnum: 0-255 seconds
-    open_loop_current: OpenLoopCurrent = OpenLoopCurrent.default  # RangedInt: 0-4000 mA
-    closed_loop_current: ClosedLoopCurrent = (
-        ClosedLoopCurrent.default
-    )  # RangedInt: 0-4000 mA
-    max_voltage: MaxVoltage = MaxVoltage.default  # RangedInt: 12000-48000 mV
-    baud_rate: BaudRate = BaudRate.default  # OptionEnum: 9600-921600
-    can_rate: CanRate = CanRate.default  # OptionEnum: 125K, 250K, 500K, 1M
-    checksum_mode: ChecksumMode = ChecksumMode.default  # OptionEnum: ON, OFF
-    response_mode: ResponseMode = ResponseMode.default  # OptionEnum: ACK, RESPONSE, ALL
-    stall_protect: StallProtect = StallProtect.default  # OptionEnum: ON, OFF
-    stall_speed: StallSpeed = StallSpeed.default  # RangedInt: 0-16383 pulses/sec
-    stall_current: ClosedLoopCurrent = ClosedLoopCurrent.default  # RangedInt: 0-4000 mA
-    stall_time: StallTime = StallTime.default  # RangedInt: 0-16383 ms
-    on_target_window: OnTargetWindow = (
-        OnTargetWindow.default
-    )  # RangedInt: 0-16383 pulses
