@@ -1,11 +1,15 @@
-from dataclasses import dataclass, field
+"""Command classes to construct commands and handle responses."""
+
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from logging import getLogger
-from typing import Final
+from time import sleep
+
+from serial import Serial
 from stepper_constants import (
-    Code,
-    ChecksumMode,
     Address,
+    ChecksumMode,
+    Code,
     StatusCode,
 )
 from stepper_exceptions import CommandError
@@ -13,42 +17,42 @@ from stepper_exceptions import CommandError
 logger = getLogger(__name__)
 
 
-def _calculate_checksum(command_bytes: bytes, checksum_mode: ChecksumMode) -> int:
-    """Calculate checksum based on selected method"""
-    FIXED_CHECKSUM_BYTE: Final[int] = 0x6B
-
-    def _calculate_xor_checksum(data: bytes) -> int:
-        """Calculate XOR checksum of bytes"""
-        checksum = 0
-        for byte in data:
-            checksum ^= byte
-        return checksum
-
-    def _calculate_crc8(data: bytes) -> int:
-        """Calculate CRC-8 with polynomial x^8 + x^2 + x + 1 (0x07)"""
-        crc = 0
-        for byte in data:
-            crc ^= byte
-            for _ in range(8):
-                if crc & 0x80:
-                    crc = (crc << 1) ^ 0x07
-                else:
-                    crc <<= 1
-            crc &= 0xFF
-        return crc
-
-    match checksum_mode:
-        case ChecksumMode.FIXED:
-            return FIXED_CHECKSUM_BYTE
-        case ChecksumMode.XOR:
-            return _calculate_xor_checksum(command_bytes)
-        case ChecksumMode.CRC8:
-            return _calculate_crc8(command_bytes)
-        case _:
-            raise CommandError("Invalid checksum mode")
-
-
 def _add_checksum(command_bytes: bytes, checksum_mode: ChecksumMode) -> bytes:
+    """Add checksum to the command."""
+
+    def _calculate_checksum(command_bytes: bytes, checksum_mode: ChecksumMode) -> int:
+        """Calculate checksum based on selected method."""
+
+        def _calculate_xor_checksum(data: bytes) -> int:
+            """Calculate XOR checksum of bytes."""
+            checksum = 0
+            for byte in data:
+                checksum ^= byte
+            return checksum
+
+        def _calculate_crc8(data: bytes) -> int:
+            """Calculate CRC-8 with polynomial x^8 + x^2 + x + 1 (0x07)."""
+            crc = 0
+            for byte in data:
+                crc ^= byte
+                for _ in range(8):
+                    if crc & 0x80:
+                        crc = (crc << 1) ^ 0x07
+                    else:
+                        crc <<= 1
+                crc &= 0xFF
+            return crc
+
+        match checksum_mode:
+            case ChecksumMode.FIXED:
+                return StatusCode.FIXED_CHECKSUM_BYTE
+            case ChecksumMode.XOR:
+                return _calculate_xor_checksum(command_bytes)
+            case ChecksumMode.CRC8:
+                return _calculate_crc8(command_bytes)
+            case _:
+                raise CommandError("Invalid checksum mode")
+
     checksum = _calculate_checksum(command_bytes, checksum_mode)
     return command_bytes + bytes([checksum])
 
@@ -64,39 +68,60 @@ def _signed_int(input: bytes) -> int:
 
 @dataclass
 class Command(ABC):
-    """Command configuration
+    """Command configuration class.
 
     :param addr: Device address
     :param checksum_mode: Checksum calculation mode
-    :param command: Command bytes (auto-generated)
+    :param max_retries: Maximum number of retries
+    :param read_timeout: Read timeout
+    :param delay: Delay after sending the command
     """
 
-    addr: Address = field(default=Address.default, init=False)
-    checksum_mode: ChecksumMode = field(default=ChecksumMode.default, init=False)
-    send_command: bytes = field(init=False)
+    addr: Address = field(default=Address.default)
+    checksum_mode: ChecksumMode = field(default=ChecksumMode.default)
+    max_retries: int = field(default=5)
+    delay: float | None = field(default=None)
+
+    _command: bytes = field(init=False)
     _response: bytes = field(init=False)
 
+    _read_timeout: float = field(init=False, default=0.005)
+
     def __post_init__(self):
-        self.send_command = _add_checksum(self.checksum_mode, self.command)
+        """Add checksum to the command."""
+        self._command = _add_checksum(self.checksum_mode, self._command_bytes)
 
     @property
     @abstractmethod
-    def code(self) -> Code: ...
+    def _code(self) -> Code:
+        """Command serial code."""
+        ...
 
     @property
     @abstractmethod
-    def command(self) -> bytes: ...
+    def _command_bytes(self) -> bytes:
+        """Command bytes defined for each command."""
+        ...
 
     @property
     def response(self) -> bytes:
+        """Response bytes."""
         return self._response
 
     @response.setter
     def response(self, response: bytes):
+        """Set response bytes."""
         self._response = response
 
     @property
+    @abstractmethod
+    def _response_length(self) -> int:
+        """Response length."""
+        return 4
+
+    @property
     def response_dict(self) -> dict[str, int]:
+        """Response dictionary."""
         return {
             "addr": Address(self._response[0]),
             "code": Code(self._response[1]),
@@ -104,27 +129,39 @@ class Command(ABC):
             "checksum": self._response[3],
         }
 
-    def verify(self):
-        """Output result of the command"""
-        match self.response_dict:
-            case {"code": Code.ERROR, "status": StatusCode.ERROR}:
-                logger.error(f"Device {self.addr}: {self.code.name} failed")
-                raise CommandError("Error")
-            case {"status": StatusCode.CONDITIONAL_ERROR}:
-                logger.error(
-                    f"Device {self.addr}: {self.code.name} failed due to conditional error"
-                )
-                raise CommandError("Conditional error")
-            case {"status": StatusCode.SUCCESS}:
-                logger.info(f"Device {self.addr}: {self.code.name} successful")
-                return self.response_dict
-            case _:
-                raise CommandError("Invalid response")
+    def execute(self, serial_connection: Serial):
+        """Send the command to the serial port and read response."""
+        serial_connection.write(self._command)
+
+        response = bytearray()
+        timeout_count = 0
+
+        while len(response) < 4:  # Minimum response length
+            serial_connection.timeout = self.read_timeout  # Set timeout for each attempt
+            if serial_connection.in_waiting:
+                response.extend(serial_connection.read(serial_connection.in_waiting))
+                timeout_count = 0
+            else:
+                timeout_count += 1
+                if timeout_count >= self.max_retries:
+                    raise CommandError(
+                        f"Timeout waiting for response after "
+                        f"{self.max_retries * self.read_timeout * 1000:.1f}ms"
+                    )
+                sleep(self.read_timeout)  # Wait for the timeout period before retrying
+
+        # Read any remaining data (if any)
+        if serial_connection.in_waiting:
+            response.extend(serial_connection.read(serial_connection.in_waiting))
+
+        self.response = bytes(response)
+        if self.delay:
+            sleep(self.delay)
 
 
 @dataclass
 class BroadcastCommand(Command, ABC):
-    """Base class for broadcast commands sent to all devices simultaneously
+    """Base class for broadcast commands sent to all devices simultaneously.
 
     :param checksum_mode: Checksum calculation mode
     """

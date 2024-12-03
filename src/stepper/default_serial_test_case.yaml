@@ -1,5 +1,0 @@
-input: "011F6B"  # Command bytes as hex string
-expected: "011FFF786B"  # Expected response bytes as hex string
-check_digit: 2  # Optional check digit index
-timeout: 0.1  # Timeout in seconds
-

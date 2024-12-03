@@ -1,17 +1,19 @@
 from dataclasses import dataclass, field
 from logging import getLogger
-from .stepper_command import Command, BroadcastCommand, _add_checksum
+
 from stepper_constants import (
-    Code,
-    Protocol,
-    EnableFlag,
-    Direction,
-    SyncFlag,
     AbsoluteFlag,
-    Speed,
     Acceleration,
+    Code,
+    Direction,
+    EnableFlag,
+    Protocol,
     PulseCount,
+    Speed,
+    SyncFlag,
 )
+
+from .stepper_command import BroadcastCommand, Command, _add_checksum
 
 logger = getLogger(__name__)
 
@@ -33,14 +35,12 @@ class Enable(MoveCommand):
     enable_status: EnableFlag = EnableFlag.ENABLE
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.ENABLE
 
     @property
-    def command(self) -> bytes:
-        return bytes(
-            [self.addr, self.code, Protocol.ENABLE, self.enable_status, self.sync]
-        )
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.ENABLE, self.enable_status, self.sync])
 
 
 @dataclass
@@ -48,14 +48,12 @@ class Disable(MoveCommand):
     """Disable command, releases the motor from the enable state"""
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.ENABLE
 
     @property
-    def command(self) -> bytes:
-        return bytes(
-            [self.addr, self.code, Protocol.ENABLE, EnableFlag.DISABLE, self.sync]
-        )
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.ENABLE, EnableFlag.DISABLE, self.sync])
 
 
 @dataclass
@@ -73,15 +71,15 @@ class Jog(MoveCommand):
     acceleration: Acceleration = Acceleration.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.JOG
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 self.direction,
                 *self.speed.bytes,
                 self.acceleration,
@@ -137,15 +135,15 @@ class Move(MoveCommand):
     mode: AbsoluteFlag = AbsoluteFlag.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.MOVE
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 self.direction,
                 *self.speed.bytes,
                 self.acceleration,
@@ -180,7 +178,7 @@ class MoveDeg(Move):
         else:
             self.direction = Direction.CW
         self.pulse_count = PulseCount(self.degrees * self.microstep_per_degree)
-        self.send_command = _add_checksum(self.checksum_mode, self.command)
+        self.send_command = _add_checksum(self.checksum_mode, self._command_bytes)
 
 
 @dataclass
@@ -198,12 +196,12 @@ class EStop(MoveCommand):
     """
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.ESTOP
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code, Protocol.ESTOP, self.sync])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.ESTOP, self.sync])
 
 
 @dataclass
@@ -216,9 +214,9 @@ class SyncMove(Command):
     """Sync move command configuration"""
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SYNC_MOVE
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code, Protocol.SYNC_MOVE])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.SYNC_MOVE])

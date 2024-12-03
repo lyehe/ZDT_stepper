@@ -1,42 +1,42 @@
-from dataclasses import dataclass
 from abc import abstractmethod
+from dataclasses import dataclass
 from logging import getLogger
 
+from .stepper_command import BroadcastCommand, Command
 from .stepper_constants import (
-    Code,
-    Protocol,
-    StoreFlag,
-    Direction,
-    ControlMode,
-    OpenLoopCurrent,
-    EnablePin,
+    Acceleration,
+    Address,
     BaudRate,
     CanRate,
-    MotorType,
-    DefaultDir,
-    SpeedReduction,
-    MicrostepInterp,
-    ScreenOff,
-    ResponseMode,
-    StallProtect,
     ChecksumMode,
-    Address,
-    Speed,
-    Acceleration,
-    Microstep,
-    Kpid,
-    CommunicationMode,
-    EnableLevel,
     ClosedLoopCurrent,
+    Code,
+    CommunicationMode,
+    ControlMode,
+    CurrentUnit,
+    DefaultDir,
+    Direction,
+    EnableLevel,
+    EnablePin,
+    Kpid,
+    LoopMode,
     MaxVoltage,
+    Microstep,
+    MicrostepInterp,
+    MotorType,
+    OnTargetWindow,
+    OpenLoopCurrent,
+    Protocol,
+    ResponseMode,
+    ScreenOff,
+    Speed,
+    SpeedReduction,
+    StallProtect,
     StallSpeed,
     StallTime,
-    OnTargetWindow,
-    LoopMode,
-    CurrentUnit,
+    StoreFlag,
 )
 from .stepper_exceptions import CommandError
-from .stepper_command import Command, BroadcastCommand
 
 logger = getLogger(__name__)
 
@@ -58,15 +58,15 @@ class SetMicrostep(SetCommand):
     microstep_value: Microstep = Microstep.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_MICROSTEP
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_MICROSTEP,
                 self.store,
                 self.microstep_value,
@@ -93,15 +93,13 @@ class SetID(SetCommand):
     confirm: bool = False
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_ID
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         if self.confirm:
-            return bytes(
-                [self.addr, self.code, Protocol.SET_ID, self.store, self.device_id]
-            )
+            return bytes([self.addr, self._code, Protocol.SET_ID, self.store, self.device_id])
         else:
             logger.warning(
                 "The device will be set to a different device ID. Please confirm by setting the confirm to true."
@@ -121,14 +119,12 @@ class SetLoopMode(SetCommand):
     loop_mode: LoopMode = LoopMode.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_LOOP_MODE
 
     @property
-    def command(self) -> bytes:
-        return bytes(
-            [self.addr, self.code, Protocol.SET_LOOP_MODE, self.store, self.loop_mode]
-        )
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.SET_LOOP_MODE, self.store, self.loop_mode])
 
 
 @dataclass
@@ -149,15 +145,15 @@ class SetOpenLoopCurrent(SetCommand):
     current_unit: CurrentUnit = CurrentUnit.MA
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_OPEN_LOOP_CURRENT
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_OPEN_LOOP_CURRENT,
                 self.store,
                 *self.open_loop_current.bytes,
@@ -186,15 +182,15 @@ class SetPID(SetCommand):
     kd: Kpid = Kpid.default_kd
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_PID
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_PID,
                 self.store,
                 *self.kp.bytes,
@@ -227,15 +223,15 @@ class SetStartSpeed(SetCommand):
     en_control: EnablePin = EnablePin.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_START_SPEED
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_START_SPEED,
                 self.store,
                 self.direction,
@@ -263,15 +259,15 @@ class SetReduction(SetCommand):
     speed_reduction: SpeedReduction = SpeedReduction.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_REDUCTION
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_REDUCTION,
                 self.store,
                 self.speed_reduction,
@@ -336,15 +332,15 @@ class SetConfig(SetCommand):
     on_target_window: OnTargetWindow = OnTargetWindow.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_CONFIG
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_CONFIG,
                 self.store,
                 self.motor_type,

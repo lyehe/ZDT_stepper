@@ -1,11 +1,11 @@
 from .stepper import (
-    Stepper,
     CMD,
-    Position,
-    MotorStatus,
     CommandError,
-    ValidationError,
+    MotorStatus,
+    Position,
     StatusError,
+    Stepper,
+    ValidationError,
 )
 
 __all__ = [

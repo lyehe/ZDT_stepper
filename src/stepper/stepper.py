@@ -1,32 +1,32 @@
-"""
-StepperLib - A robust library for stepper motor control
+"""StepperLib - A robust library for stepper motor control
 """
 
 import logging
 import time
+
 from serial import Serial
 
-from .stepper_exceptions import (
-    CommandError,
-    ValidationError,
-    CommunicationError,
-    StatusError,
-)
 from .stepper_constants import (
     CMD_CODE,
     PROTOCOL,
+    BaudRate,
     COMPort,
     Direction,
     StoreFlag,
     SyncFlag,
-    BaudRate,
 )
 from .stepper_dataclasses import (
+    CommandInput,
     CommandOutput,
+    EncoderCalibrationStatus,
     MotorStatus,
     Position,
-    CommandInput,
-    EncoderCalibrationStatus,
+)
+from .stepper_exceptions import (
+    CommandError,
+    CommunicationError,
+    StatusError,
+    ValidationError,
 )
 
 
@@ -77,9 +77,7 @@ class SerialController:
         while retry_count >= 0:
             try:
                 self._serial.write(cmd_bytes)
-                response = self._serial.read_until(
-                    size=command.expected_response_length
-                )
+                response = self._serial.read_until(size=command.expected_response_length)
                 if not response:
                     raise CommunicationError("No response received")
 
@@ -94,9 +92,7 @@ class SerialController:
                 if retry_count == 0:
                     raise
                 retry_count -= 1
-                self._logger.warning(
-                    f"Command {command.description} failed, retrying: {ex}"
-                )
+                self._logger.warning(f"Command {command.description} failed, retrying: {ex}")
                 time.sleep(command.retry_delay)
 
     def _validate(self, command: CommandInput, output: CommandOutput) -> None:
@@ -158,9 +154,7 @@ class SerialController:
 
         cmd = self._create_command(
             CMD_CODE.SPEED,
-            data=bytes([direction])
-            + rpm.to_bytes(2, "big")
-            + bytes([acceleration, sync]),
+            data=bytes([direction]) + rpm.to_bytes(2, "big") + bytes([acceleration, sync]),
             description=f"Set speed to {rpm} RPM (dir={direction}, accel={acceleration})",
         )
         result = self._execute(cmd)
@@ -201,9 +195,7 @@ class SerialController:
 
     def get_position(self) -> Position:
         """Get current motor position"""
-        cmd = self._create_command(
-            CMD_CODE.READ_POSITION, description="Read current position"
-        )
+        cmd = self._create_command(CMD_CODE.READ_POSITION, description="Read current position")
         result = self._execute(cmd)
         if result.success and result.data:
             return Position.from_bytes(result.data)
@@ -212,9 +204,7 @@ class SerialController:
 
     def get_status(self) -> MotorStatus:
         """Get motor status"""
-        cmd = self._create_command(
-            CMD_CODE.READ_STATUS, description="Read motor status"
-        )
+        cmd = self._create_command(CMD_CODE.READ_STATUS, description="Read motor status")
         result = self._execute(cmd)
         if result.success and result.data:
             return MotorStatus.from_byte(result.data[0])
@@ -308,9 +298,7 @@ class SerialController:
 
     def get_realtime_speed(self) -> int:
         """Get real-time speed in RPM"""
-        cmd = self._create_command(
-            CMD_CODE.READ_REALTIME_SPEED, description="Read real-time speed"
-        )
+        cmd = self._create_command(CMD_CODE.READ_REALTIME_SPEED, description="Read real-time speed")
         result = self._execute(cmd)
         if result.success and result.data:
             sign = -1 if result.data[0] else 1
@@ -320,9 +308,7 @@ class SerialController:
 
     def get_position_error(self) -> int:
         """Get position error in steps"""
-        cmd = self._create_command(
-            CMD_CODE.READ_POSITION_ERROR, description="Read position error"
-        )
+        cmd = self._create_command(CMD_CODE.READ_POSITION_ERROR, description="Read position error")
         result = self._execute(cmd)
         if result.success and result.data:
             sign = -1 if result.data[0] else 1
@@ -431,9 +417,7 @@ class SerialController:
         )
         self._execute(cmd)
 
-    def set_pid_parameters(
-        self, kp: int, ki: int, kd: int, store: StoreFlag = 1
-    ) -> None:
+    def set_pid_parameters(self, kp: int, ki: int, kd: int, store: StoreFlag = 1) -> None:
         """Set position PID parameters
 
         Args:
@@ -501,9 +485,7 @@ class SerialController:
         Returns:
             Dictionary with resistance (mΩ) and inductance (μH)
         """
-        cmd = self._create_command(
-            CMD_CODE.READ_PHASE_PARAMS, description="Read phase parameters"
-        )
+        cmd = self._create_command(CMD_CODE.READ_PHASE_PARAMS, description="Read phase parameters")
         result = self._execute(cmd)
         if result.success and result.data:
             resistance = int.from_bytes(result.data[0:2], "big")  # mΩ
@@ -513,9 +495,7 @@ class SerialController:
 
     def get_bus_voltage(self) -> float:
         """Get bus voltage in volts"""
-        cmd = self._create_command(
-            CMD_CODE.READ_BUS_VOLTAGE, description="Read bus voltage"
-        )
+        cmd = self._create_command(CMD_CODE.READ_BUS_VOLTAGE, description="Read bus voltage")
         result = self._execute(cmd)
         if result.success and result.data:
             voltage_mv = int.from_bytes(result.data, "big")
@@ -525,9 +505,7 @@ class SerialController:
 
     def get_phase_current(self) -> float:
         """Get phase current in amps"""
-        cmd = self._create_command(
-            CMD_CODE.READ_PHASE_CURRENT, description="Read phase current"
-        )
+        cmd = self._create_command(CMD_CODE.READ_PHASE_CURRENT, description="Read phase current")
         result = self._execute(cmd)
         if result.success and result.data:
             current_ma = int.from_bytes(result.data, "big")
@@ -756,9 +734,7 @@ class SerialController:
 
     def get_version(self) -> str:
         """Get firmware version string"""
-        cmd = self._create_command(
-            CMD_CODE.READ_VERSION, description="Read firmware version"
-        )
+        cmd = self._create_command(CMD_CODE.READ_VERSION, description="Read firmware version")
         result = self._execute(cmd)
         if result.success and result.data:
             # Convert bytes to string, assuming ASCII encoding

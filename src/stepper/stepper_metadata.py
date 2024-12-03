@@ -1,49 +1,51 @@
-from dataclasses import dataclass, asdict
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import TypeAlias
+
+import yaml
+
 from .stepper_constants import (
-    StoreFlag,
-    HomingMode,
-    HomingDirection,
-    HomingSpeed,
-    HomingTimeout,
-    CollisionDetectionSpeed,
-    CollisionDetectionCurrent,
-    CollisionDetectionTime,
+    AbsoluteFlag,
+    Acceleration,
+    Address,
+    AngleUnit,
     AutoHoming,
-    MotorType,
-    ControlMode,
-    CommunicationMode,
-    EnableLevel,
-    Direction,
-    Microstep,
-    MicrostepInterp,
-    ScreenOff,
-    OpenLoopCurrent,
-    ClosedLoopCurrent,
-    MaxVoltage,
     BaudRate,
     CanRate,
-    Address,
     ChecksumMode,
+    ClosedLoopCurrent,
+    CollisionDetectionCurrent,
+    CollisionDetectionSpeed,
+    CollisionDetectionTime,
+    CommunicationMode,
+    ControlMode,
+    CurrentUnit,
+    Direction,
+    EnableLevel,
+    HomingDirection,
+    HomingMode,
+    HomingSpeed,
+    HomingTimeout,
+    Kpid,
+    MaxVoltage,
+    Microstep,
+    MicrostepInterp,
+    MotorType,
+    OnTargetWindow,
+    OpenLoopCurrent,
+    PulseCount,
     ResponseMode,
+    ScreenOff,
+    Speed,
+    StallCurrent,
     StallProtect,
     StallSpeed,
-    StallCurrent,
     StallTime,
-    OnTargetWindow,
-    VoltageUnit,
-    CurrentUnit,
-    AngleUnit,
-    Speed,
-    Acceleration,
-    PulseCount,
-    AbsoluteFlag,
+    StoreFlag,
     SyncFlag,
-    Kpid,
+    VoltageUnit,
 )
-from pathlib import Path
-import yaml
-import json
 
 PathVar: TypeAlias = Path | str
 

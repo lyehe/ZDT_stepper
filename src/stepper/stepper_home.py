@@ -1,21 +1,22 @@
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from logging import getLogger
-from .stepper_command import Command, BroadcastCommand, _int
+
+from .stepper_command import BroadcastCommand, Command, _int
 from .stepper_constants import (
+    Address,
+    AutoHoming,
     Code,
+    CollisionDetectionCurrent,
+    CollisionDetectionSpeed,
+    CollisionDetectionTime,
+    HomingDirection,
+    HomingMode,
+    HomingSpeed,
+    HomingStatus,
+    HomingTimeout,
     Protocol,
     StoreFlag,
     SyncFlag,
-    HomingMode,
-    HomingDirection,
-    HomingSpeed,
-    HomingTimeout,
-    CollisionDetectionSpeed,
-    CollisionDetectionCurrent,
-    CollisionDetectionTime,
-    AutoHoming,
-    HomingStatus,
-    Address,
 )
 
 logger = getLogger(__name__)
@@ -31,12 +32,12 @@ class SetHome(Command):
     store: StoreFlag = StoreFlag.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_HOME
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code, Protocol.SET_HOME, self.store])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.SET_HOME, self.store])
 
 
 @dataclass
@@ -56,12 +57,12 @@ class Home(Command):
     sync: SyncFlag = SyncFlag.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.HOME
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code, self.homing_mode, self.sync])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, self.homing_mode, self.sync])
 
 
 @dataclass
@@ -74,12 +75,12 @@ class StopHome(Command):
     """Stop homing command configuration"""
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.STOP_HOME
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code, Protocol.STOP_HOME])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.STOP_HOME])
 
 
 @dataclass
@@ -87,12 +88,12 @@ class GetHomeParam(Command):
     """Get home parameters command configuration"""
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.GET_HOME_PARAM
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
@@ -105,9 +106,7 @@ class GetHomeParam(Command):
             "homing_speed": HomingSpeed(_int(response[4:6])),
             "homing_timeout": HomingTimeout(_int(response[6:10])),
             "collision_detection_speed": CollisionDetectionSpeed(_int(response[10:12])),
-            "collision_detection_current": CollisionDetectionCurrent(
-                _int(response[12:14])
-            ),
+            "collision_detection_current": CollisionDetectionCurrent(_int(response[12:14])),
             "collision_detection_time": CollisionDetectionTime(_int(response[14:16])),
             "auto_home": AutoHoming(response[16]).name,
             "checksum": response[17],
@@ -135,22 +134,20 @@ class SetHomeParam(Command):
     homing_speed: HomingSpeed = HomingSpeed.default
     homing_timeout: HomingTimeout = HomingTimeout.default
     collision_detection_speed: CollisionDetectionSpeed = CollisionDetectionSpeed.default
-    collision_detection_current: CollisionDetectionCurrent = (
-        CollisionDetectionCurrent.default
-    )
+    collision_detection_current: CollisionDetectionCurrent = CollisionDetectionCurrent.default
     collision_detection_time: CollisionDetectionTime = CollisionDetectionTime.default
     auto_home: AutoHoming = AutoHoming.default
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.SET_HOME_PARAM
 
     @property
-    def command(self) -> bytes:
+    def _command_bytes(self) -> bytes:
         return bytes(
             [
                 self.addr,
-                self.code,
+                self._code,
                 Protocol.SET_HOME_PARAM,
                 self.store,
                 self.homing_mode,
@@ -170,12 +167,12 @@ class GetHomeStatus(Command):
     """Get home status command configuration"""
 
     @property
-    def code(self) -> Code:
+    def _code(self) -> Code:
         return Code.GET_HOME_STATUS
 
     @property
-    def command(self) -> bytes:
-        return bytes([self.addr, self.code])
+    def _command_bytes(self) -> bytes:
+        return bytes([self.addr, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
