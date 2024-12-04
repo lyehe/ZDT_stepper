@@ -39,7 +39,7 @@ class Enable(MoveCommand):
         return Code.ENABLE
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.ENABLE, self.enable_status, self.sync])
 
 
@@ -52,7 +52,7 @@ class Disable(MoveCommand):
         return Code.ENABLE
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.ENABLE, EnableFlag.DISABLE, self.sync])
 
 
@@ -75,7 +75,7 @@ class Jog(MoveCommand):
         return Code.JOG
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -139,7 +139,7 @@ class Move(MoveCommand):
         return Code.MOVE
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -178,7 +178,7 @@ class MoveDeg(Move):
         else:
             self.direction = Direction.CW
         self.pulse_count = PulseCount(self.degrees * self.microstep_per_degree)
-        self.send_command = _add_checksum(self.checksum_mode, self._command_bytes)
+        self.send_command = _add_checksum(self.checksum_mode, self._input)
 
 
 @dataclass
@@ -200,7 +200,7 @@ class EStop(MoveCommand):
         return Code.ESTOP
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.ESTOP, self.sync])
 
 
@@ -218,5 +218,5 @@ class SyncMove(Command):
         return Code.SYNC_MOVE
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.SYNC_MOVE])

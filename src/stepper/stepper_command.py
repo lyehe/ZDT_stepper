@@ -1,6 +1,7 @@
 """Command classes to construct commands and handle responses."""
 
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from logging import getLogger
 from time import sleep
@@ -77,6 +78,8 @@ class Command(ABC):
     :param delay: Delay after sending the command
     """
 
+    serial_connection: Serial
+
     addr: Address = field(default=Address.default)
     checksum_mode: ChecksumMode = field(default=ChecksumMode.default)
     max_retries: int = field(default=5)
@@ -89,7 +92,7 @@ class Command(ABC):
 
     def __post_init__(self):
         """Add checksum to the command."""
-        self._command = _add_checksum(self.checksum_mode, self._command_bytes)
+        self._command = _add_checksum(self.checksum_mode, self._input)
 
     @property
     @abstractmethod
@@ -99,47 +102,83 @@ class Command(ABC):
 
     @property
     @abstractmethod
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         """Command bytes defined for each command."""
         ...
-
-    @property
-    def response(self) -> bytes:
-        """Response bytes."""
-        return self._response
-
-    @response.setter
-    def response(self, response: bytes):
-        """Set response bytes."""
-        self._response = response
 
     @property
     @abstractmethod
     def _response_length(self) -> int:
         """Response length."""
-        return 4
+        ...
 
     @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        return {
-            "addr": Address(self._response[0]),
-            "code": Code(self._response[1]),
-            "status": self._response[2],
-            "checksum": self._response[3],
-        }
+    def _data_length(self) -> int:
+        """Data length."""
+        return self._response_length - 3
 
-    def execute(self, serial_connection: Serial):
+    def _read_address(self) -> Address:
+        """Read address from response."""
+        address = self.serial_connection.read(1)
+        if self.addr == Address.broadcast:
+            if address != 1:
+                raise CommandError(f"Received address: {address}, expected: 1")
+        elif address != self.addr:
+            raise CommandError(f"Received address: {address}, expected: {self.addr}")
+        return Address(address)
+    
+    def _read_code(self) -> Code:
+        """Read code from response."""
+        code = self.serial_connection.read(1)
+        if code == StatusCode.ERROR:
+            raise CommandError(f"Error code: {code}")
+        return Code(code)
+    
+    def _read_data(self) -> bytes:
+        """Read data from response."""
+        data_length = self._data_length
+        data = self.serial_connection.read(data_length)
+        return data
+    
+    @abstractmethod
+    def _process_data(self, data: bytes) -> None:
+        """Process data from response."""
+        ...
+    
+    def _read_checksum(self) -> int:
+        """Read checksum from response."""
+        checksum = self.serial_connection.read(1)
+        expected_checksum = _add_checksum(self._response, self.checksum_mode)
+        if checksum != expected_checksum:
+            raise CommandError(f"Invalid checksum: {checksum}, expected: {expected_checksum}")
+        return checksum
+
+
+    def execute(self):
         """Send the command to the serial port and read response."""
-        serial_connection.write(self._command)
+        self.serial_connection.write(self._command)
 
         response = bytearray()
         timeout_count = 0
 
+        address = self._read_address()
+        code = self._read_code()
+        data = self._read_data()
+        self._process_data(data)
+        self._response = bytes(response)
+        checksum = self._read_checksum()
+
         while len(response) < 4:  # Minimum response length
-            serial_connection.timeout = self.read_timeout  # Set timeout for each attempt
-            if serial_connection.in_waiting:
-                response.extend(serial_connection.read(serial_connection.in_waiting))
+
+
+
+        while len(response) < 4:  # Minimum response length
+
+
+        while len(response) < 4:  # Minimum response length
+            self.serial_connection.timeout = self.read_timeout  # Set timeout for each attempt
+            if self.serial_connection.in_waiting:
+                response.extend(self.serial_connection.read(self.serial_connection.in_waiting))
                 timeout_count = 0
             else:
                 timeout_count += 1
@@ -151,8 +190,8 @@ class Command(ABC):
                 sleep(self.read_timeout)  # Wait for the timeout period before retrying
 
         # Read any remaining data (if any)
-        if serial_connection.in_waiting:
-            response.extend(serial_connection.read(serial_connection.in_waiting))
+        if self.serial_connection.in_waiting:
+            response.extend(self.serial_connection.read(self.serial_connection.in_waiting))
 
         self.response = bytes(response)
         if self.delay:

@@ -34,7 +34,7 @@ class CalibrateEncoder(SystemCommand):
         return Code.CAL_ENCODER
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return self._check_confirm(bytes([self.addr, self._code, Protocol.CAL_ENCODER]))
 
 
@@ -47,7 +47,7 @@ class ZeroAllPositions(SystemCommand):
         return Code.ZERO_ALL_POSITIONS
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return self._check_confirm(bytes([self.addr, self._code, Protocol.ZERO_ALL_POSITIONS]))
 
 
@@ -60,7 +60,7 @@ class ClearStall(SystemCommand):
         return Code.CLEAR_STALL
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return self._check_confirm(bytes([self.addr, self._code, Protocol.CLEAR_STALL]))
 
 
@@ -73,5 +73,5 @@ class FactoryReset(SystemCommand):
         return Code.FACTORY_RESET
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return self._check_confirm(bytes([self.addr, self._code, Protocol.FACTORY_RESET]))

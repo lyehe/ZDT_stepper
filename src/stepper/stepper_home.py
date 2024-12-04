@@ -36,7 +36,7 @@ class SetHome(Command):
         return Code.SET_HOME
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.SET_HOME, self.store])
 
 
@@ -61,7 +61,7 @@ class Home(Command):
         return Code.HOME
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, self.homing_mode, self.sync])
 
 
@@ -79,7 +79,7 @@ class StopHome(Command):
         return Code.STOP_HOME
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.STOP_HOME])
 
 
@@ -92,7 +92,7 @@ class GetHomeParam(Command):
         return Code.GET_HOME_PARAM
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -143,7 +143,7 @@ class SetHomeParam(Command):
         return Code.SET_HOME_PARAM
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -171,7 +171,7 @@ class GetHomeStatus(Command):
         return Code.GET_HOME_STATUS
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property

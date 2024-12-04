@@ -62,7 +62,7 @@ class SetMicrostep(SetCommand):
         return Code.SET_MICROSTEP
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -97,7 +97,7 @@ class SetID(SetCommand):
         return Code.SET_ID
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         if self.confirm:
             return bytes([self.addr, self._code, Protocol.SET_ID, self.store, self.device_id])
         else:
@@ -123,7 +123,7 @@ class SetLoopMode(SetCommand):
         return Code.SET_LOOP_MODE
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.SET_LOOP_MODE, self.store, self.loop_mode])
 
 
@@ -149,7 +149,7 @@ class SetOpenLoopCurrent(SetCommand):
         return Code.SET_OPEN_LOOP_CURRENT
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -186,7 +186,7 @@ class SetPID(SetCommand):
         return Code.SET_PID
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -227,7 +227,7 @@ class SetStartSpeed(SetCommand):
         return Code.SET_START_SPEED
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -263,7 +263,7 @@ class SetReduction(SetCommand):
         return Code.SET_REDUCTION
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -336,7 +336,7 @@ class SetConfig(SetCommand):
         return Code.SET_CONFIG
 
     @property
-    def _command_bytes(self) -> bytes:
+    def _input(self) -> bytes:
         return bytes(
             [
                 self.addr,
