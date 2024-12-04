@@ -1,3 +1,5 @@
+"""Metadata container classes."""
+
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -52,37 +54,43 @@ PathVar: TypeAlias = Path | str
 
 @dataclass
 class StepperMetadata:
-    """Metadata class for stepper metadata"""
+    """Metadata class for stepper metadata."""
 
     def to_dict(self) -> dict:
+        """Convert to dictionary."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "StepperMetadata":
+        """Convert from dictionary."""
         return cls(**data)
 
     def to_json(self, path: PathVar) -> None:
+        """Convert to JSON."""
         with open(path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
     def from_json(cls, path: PathVar) -> "StepperMetadata":
+        """Convert from JSON."""
         with open(path) as f:
             return cls.from_dict(json.load(f))
 
     def to_yaml(self, path: PathVar) -> None:
+        """Convert to YAML."""
         with open(path, "w") as f:
             yaml.dump(self.to_dict(), f)
 
     @classmethod
     def from_yaml(cls, path: PathVar) -> "StepperMetadata":
+        """Convert from YAML."""
         with open(path) as f:
             return cls.from_dict(yaml.safe_load(f))
 
 
 @dataclass
 class PositionData(StepperMetadata):
-    """Position data metadata"""
+    """Position data metadata."""
 
     direction: Direction = Direction.default
     speed: Speed = Speed.default
@@ -94,7 +102,7 @@ class PositionData(StepperMetadata):
 
 @dataclass
 class VelocityData(StepperMetadata):
-    """Velocity data metadata"""
+    """Velocity data metadata."""
 
     direction: Direction = Direction.default
     speed: Speed = Speed.default
@@ -104,7 +112,7 @@ class VelocityData(StepperMetadata):
 
 @dataclass
 class HomeMetadata(StepperMetadata):
-    """Home parameters metadata
+    """Home parameters metadata.
 
     :param store: Store flag
     :param homing_mode: Homing mode
@@ -130,7 +138,7 @@ class HomeMetadata(StepperMetadata):
 
 @dataclass
 class MotorMetadata(StepperMetadata):
-    """Motor parameters metadata
+    """Motor parameters metadata.
 
     :param motor_type: Motor type
     :param control_mode: Control mode
@@ -180,7 +188,7 @@ class MotorMetadata(StepperMetadata):
 
 @dataclass
 class SystemMetadata(StepperMetadata):
-    """System parameters metadata
+    """System parameters metadata.
 
     :param voltage_unit: Voltage unit
     :param current_unit: Current unit
@@ -224,7 +232,12 @@ class SystemMetadata(StepperMetadata):
 
 @dataclass
 class PIDMetadata(StepperMetadata):
-    """PID parameters metadata"""
+    """PID parameters metadata.
+
+    :param pid_p: PID P
+    :param pid_i: PID I
+    :param pid_d: PID D
+    """
 
     pid_p: Kpid = Kpid.default_kp
     pid_i: Kpid = Kpid.default_ki
@@ -233,7 +246,7 @@ class PIDMetadata(StepperMetadata):
 
 @dataclass
 class ReadableMetadata:
-    """Readable metadata
+    """Readable metadata.
 
     :param system_metadata: System metadata parameters
     :param motor_metadata: Motor metadata parameters
@@ -248,6 +261,7 @@ class ReadableMetadata:
 
     @property
     def __dict__(self) -> dict:
+        """Dictionary representation."""
         result = {}
         if self.system_metadata is not None:
             result.update(asdict(self.system_metadata))
@@ -262,7 +276,7 @@ class ReadableMetadata:
 
 @dataclass
 class WritableMetadata:
-    """Writable metadata"""
+    """Writable metadata."""
 
     position_metadata: PositionData | None = None
     velocity_metadata: VelocityData | None = None
@@ -272,6 +286,7 @@ class WritableMetadata:
 
     @property
     def __dict__(self) -> dict:
+        """Dictionary representation."""
         result = {}
         if self.position_metadata is not None:
             result.update(asdict(self.position_metadata))

@@ -1,3 +1,6 @@
+"""Homing related commands."""
+
+
 from dataclasses import asdict, dataclass
 from logging import getLogger
 
@@ -24,7 +27,7 @@ logger = getLogger(__name__)
 
 @dataclass
 class SetHome(Command):
-    """Set home command configuration
+    """Set home command configuration.
 
     :param store: Store flag
     """
@@ -42,12 +45,12 @@ class SetHome(Command):
 
 @dataclass
 class SetHomeAll(SetHome, BroadcastCommand):
-    """Set home all command configuration"""
+    """Set home all command configuration."""
 
 
 @dataclass
 class Home(Command):
-    """Home command configuration
+    """Home command configuration.
 
     :param homing_mode: Homing mode
     :param sync: Sync flag
@@ -67,12 +70,12 @@ class Home(Command):
 
 @dataclass
 class HomeAll(Home, BroadcastCommand):
-    """Home all command configuration"""
+    """Home all command configuration."""
 
 
 @dataclass
 class StopHome(Command):
-    """Stop homing command configuration"""
+    """Stop homing command configuration."""
 
     @property
     def _code(self) -> Code:
@@ -85,7 +88,7 @@ class StopHome(Command):
 
 @dataclass
 class GetHomeParam(Command):
-    """Get home parameters command configuration"""
+    """Get home parameters command configuration."""
 
     @property
     def _code(self) -> Code:
@@ -97,6 +100,7 @@ class GetHomeParam(Command):
 
     @property
     def response_dict(self) -> dict[str, int]:
+        """Return home parameters as a dictionary."""
         response = self.response
         return {
             "addr": Address(response[0]),
@@ -115,7 +119,7 @@ class GetHomeParam(Command):
 
 @dataclass
 class SetHomeParam(Command):
-    """Set home parameters command configuration
+    """Set home parameters command configuration.
 
     :param store: Store flag
     :param homing_mode: Homing mode
@@ -164,7 +168,7 @@ class SetHomeParam(Command):
 
 @dataclass
 class GetHomeStatus(Command):
-    """Get home status command configuration"""
+    """Get home status command configuration."""
 
     @property
     def _code(self) -> Code:
@@ -176,6 +180,7 @@ class GetHomeStatus(Command):
 
     @property
     def response_dict(self) -> dict[str, int]:
+        """Return homing status as a dictionary."""
         response = self.response
         return {
             "addr": Address(response[0]),
@@ -186,8 +191,10 @@ class GetHomeStatus(Command):
 
     @property
     def homing_status(self) -> HomingStatus:
+        """Return homing status."""
         return HomingStatus(self.response_dict["homing_status"])
 
     @property
     def parameter_dict(self) -> dict[str, bool]:
+        """Return homing status as a dictionary."""
         return asdict(self.homing_status)

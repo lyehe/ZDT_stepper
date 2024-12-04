@@ -13,6 +13,13 @@ COMPort: TypeAlias = str | Path
 Data: TypeAlias = bytes | None
 
 
+class SystemConstants(NamedTuple):
+    """System constants for stepper motor protocol."""
+
+    SERIAL_TIMEOUT: float = 0.005
+    MAX_RETRIES: int = 3
+
+
 class Code(IntEnum):
     """Command codes for stepper motor protocol."""
 
@@ -171,7 +178,8 @@ class Address(RangedInt):
     Used in all commands.
     """
 
-    meta = MetaParam(0, 256, 0, 1)  # 0-255, 1 is default address, 0 is broadcast
+    meta = MetaParam(minimum=0, maximum=256, default=1, digits=1)
+    # 0-255, 1 is default address, 0 is broadcast
 
     @property
     def default(self) -> int:
@@ -245,7 +253,7 @@ class Speed(RangedInt):
     Used in: jog, move, save_speed
     """
 
-    meta = MetaParam(0, 3000, 0, 2)  # Unit RPM
+    meta = MetaParam(minimum=0, maximum=3000, default=0, digits=2)  # Unit RPM
 
     @property
     def stop(self) -> int:
@@ -259,7 +267,7 @@ class Acceleration(RangedInt):
     Used in: jog, move, save_speed
     """
 
-    meta = MetaParam(0, 255, 0, 1)
+    meta = MetaParam(minimum=0, maximum=255, default=0, digits=1)
     # t2 - t1 = (256 - acc) * 50(us)，Vt2 = Vt1 + 1(RPM)
 
 
@@ -269,7 +277,7 @@ class PulseCount(RangedInt):
     Used in: move
     """
 
-    meta = MetaParam(0, 256**4, 0, 4)
+    meta = MetaParam(minimum=0, maximum=256**4, default=0, digits=4)
 
 
 class AbsoluteFlag(OptionEnum):
@@ -326,7 +334,7 @@ class HomingSpeed(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(0, 300, 30, 2)  # Unit: RPM
+    meta = MetaParam(minimum=0, maximum=300, default=30, digits=2)  # Unit: RPM
 
 
 class HomingTimeout(RangedInt):
@@ -335,7 +343,7 @@ class HomingTimeout(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(0, 100000, 10000, 4)  # Unit: ms
+    meta = MetaParam(minimum=0, maximum=100000, default=10000, digits=4)  # Unit: ms
 
 
 class CollisionDetectionSpeed(RangedInt):
@@ -344,7 +352,7 @@ class CollisionDetectionSpeed(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(0, 500, 300, 2)  # Unit: RPM
+    meta = MetaParam(minimum=0, maximum=500, default=300, digits=2)  # Unit: RPM
 
 
 class CollisionDetectionCurrent(RangedInt):
@@ -353,7 +361,7 @@ class CollisionDetectionCurrent(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(0, 3000, 800, 2)  # Unit: mA
+    meta = MetaParam(minimum=0, maximum=3000, default=800, digits=2)  # Unit: mA
 
 
 class CollisionDetectionTime(RangedInt):
@@ -362,7 +370,7 @@ class CollisionDetectionTime(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(0, 500, 60, 2)  # Unit: ms
+    meta = MetaParam(minimum=0, maximum=500, default=60, digits=2)  # Unit: ms
 
 
 class AutoHoming(OptionEnum):
@@ -414,7 +422,7 @@ class Kpid(RangedInt):
     Used in: set_pid
     """
 
-    meta = MetaParam(0, 256**4, 0, 4)
+    meta = MetaParam(minimum=0, maximum=256**4, default=0, digits=4)
 
     @property
     def default_kp(self) -> int:
@@ -536,7 +544,7 @@ class Microstep(RangedInt):
     Used in: set_config, set_microstep
     """
 
-    meta = MetaParam(0, 256, 16, 1)  # 0x00 is 256 microsteps
+    meta = MetaParam(minimum=0, maximum=256, default=16, digits=1)  # 0x00 is 256 microsteps
 
 
 class MicrostepInterp(OptionEnum):
@@ -575,7 +583,7 @@ class OpenLoopCurrent(RangedInt):
     Used in: set_config, set_current
     """
 
-    meta = MetaParam(0, 2000, 800, 2)  # Unit: mA
+    meta = MetaParam(minimum=0, maximum=2000, default=800, digits=2)  # Unit: mA
 
 
 class ClosedLoopCurrent(RangedInt):
@@ -584,7 +592,7 @@ class ClosedLoopCurrent(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(0, 4000, 2000, 2)  # Unit: mA
+    meta = MetaParam(minimum=0, maximum=4000, default=2000, digits=2)  # Unit: mA
 
 
 class MaxVoltage(RangedInt):
@@ -593,7 +601,7 @@ class MaxVoltage(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(0, 5000, 4000, 2)  # Unit: mV
+    meta = MetaParam(minimum=0, maximum=5000, default=4000, digits=2)  # Unit: mV
 
 
 class BaudRate(OptionEnum):
@@ -711,7 +719,7 @@ class StallSpeed(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(0, 500, 28, 2)  # Unit: RPM
+    meta = MetaParam(minimum=0, maximum=500, default=28, digits=2)  # Unit: RPM
 
 
 class StallCurrent(RangedInt):
@@ -720,7 +728,7 @@ class StallCurrent(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(0, 3000, 2400, 2)  # Unit: mA
+    meta = MetaParam(minimum=0, maximum=3000, default=2400, digits=2)  # Unit: mA
 
 
 class StallTime(RangedInt):
@@ -729,7 +737,7 @@ class StallTime(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(0, 5000, 4000, 2)  # Unit: ms
+    meta = MetaParam(minimum=0, maximum=5000, default=4000, digits=2)  # Unit: ms
 
 
 class OnTargetWindow(RangedInt):
@@ -738,7 +746,7 @@ class OnTargetWindow(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(0, 100, 1, 2)  # Unit: 0.1XDeg
+    meta = MetaParam(minimum=0, maximum=100, default=1, digits=2)  # Unit: 0.1XDeg
 
 
 class EnablePin(OptionEnum):
@@ -887,4 +895,4 @@ class DefaultParameters:
     stall_speed: int = 28
     stall_current: int = 2400
     stall_time: int = 4000
-    pos_window: int = 1
+    position_window: int = 1

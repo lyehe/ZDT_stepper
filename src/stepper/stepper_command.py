@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from logging import getLogger
-from time import sleep
+from time import sleep, time
 
 from serial import Serial
 from stepper_constants import (
@@ -12,6 +12,7 @@ from stepper_constants import (
     ChecksumMode,
     Code,
     StatusCode,
+    SystemConstants,
 )
 from stepper_exceptions import CommandError
 
@@ -82,17 +83,16 @@ class Command(ABC):
 
     addr: Address = field(default=Address.default)
     checksum_mode: ChecksumMode = field(default=ChecksumMode.default)
-    max_retries: int = field(default=5)
     delay: float | None = field(default=None)
 
     _command: bytes = field(init=False)
     _response: bytes = field(init=False)
-
-    _read_timeout: float = field(init=False, default=0.005)
+    _timestamp: float = field(init=False)
 
     def __post_init__(self):
         """Add checksum to the command."""
-        self._command = _add_checksum(self.checksum_mode, self._input)
+        self._command = _add_checksum(self._input, self.checksum_mode)
+        self._timestamp = time()
 
     @property
     @abstractmethod
@@ -114,8 +114,13 @@ class Command(ABC):
 
     @property
     def _data_length(self) -> int:
-        """Data length."""
+        """Data length without address, code, and checksum."""
         return self._response_length - 3
+
+    def _reset_buffers(self):
+        """Reset input and output buffers."""
+        self.serial_connection.reset_input_buffer()
+        self.serial_connection.reset_output_buffer()
 
     def _read_address(self) -> Address:
         """Read address from response."""
@@ -126,80 +131,63 @@ class Command(ABC):
         elif address != self.addr:
             raise CommandError(f"Received address: {address}, expected: {self.addr}")
         return Address(address)
-    
+
     def _read_code(self) -> Code:
         """Read code from response."""
         code = self.serial_connection.read(1)
         if code == StatusCode.ERROR:
             raise CommandError(f"Error code: {code}")
         return Code(code)
-    
+
     def _read_data(self) -> bytes:
         """Read data from response."""
         data_length = self._data_length
         data = self.serial_connection.read(data_length)
         return data
-    
+
     @abstractmethod
     def _process_data(self, data: bytes) -> None:
         """Process data from response."""
         ...
-    
-    def _read_checksum(self) -> int:
+
+    def _read_checksum(self, response: bytes) -> int:
         """Read checksum from response."""
         checksum = self.serial_connection.read(1)
-        expected_checksum = _add_checksum(self._response, self.checksum_mode)
+        expected_checksum = _add_checksum(response, self.checksum_mode)
         if checksum != expected_checksum:
             raise CommandError(f"Invalid checksum: {checksum}, expected: {expected_checksum}")
         return checksum
 
-
-    def execute(self):
+    def execute(self) -> bool:
         """Send the command to the serial port and read response."""
-        self.serial_connection.write(self._command)
+        self.serial_connection.reset_output_buffer()
 
         response = bytearray()
-        timeout_count = 0
+        error_count = 0
 
-        address = self._read_address()
-        code = self._read_code()
-        data = self._read_data()
-        self._process_data(data)
-        self._response = bytes(response)
-        checksum = self._read_checksum()
+        while error_count < SystemConstants.MAX_RETRIES:
+            try:
+                self.serial_connection.write(self._command)
+                address = self._read_address()
+                code = self._read_code()
+                data = self._read_data()
+                self._process_data(data)
 
-        while len(response) < 4:  # Minimum response length
+                response.extend(address, code.value, data)
+                checksum = self._read_checksum(bytes(response))
+                self._response = bytes(response + checksum)
+                if self.delay:
+                    sleep(self.delay)
+                break
+            except CommandError:
+                self._reset_buffers()
+                error_count += 1
 
-
-
-        while len(response) < 4:  # Minimum response length
-
-
-        while len(response) < 4:  # Minimum response length
-            self.serial_connection.timeout = self.read_timeout  # Set timeout for each attempt
-            if self.serial_connection.in_waiting:
-                response.extend(self.serial_connection.read(self.serial_connection.in_waiting))
-                timeout_count = 0
-            else:
-                timeout_count += 1
-                if timeout_count >= self.max_retries:
-                    raise CommandError(
-                        f"Timeout waiting for response after "
-                        f"{self.max_retries * self.read_timeout * 1000:.1f}ms"
-                    )
-                sleep(self.read_timeout)  # Wait for the timeout period before retrying
-
-        # Read any remaining data (if any)
-        if self.serial_connection.in_waiting:
-            response.extend(self.serial_connection.read(self.serial_connection.in_waiting))
-
-        self.response = bytes(response)
-        if self.delay:
-            sleep(self.delay)
+        return error_count < SystemConstants.MAX_RETRIES
 
 
 @dataclass
-class BroadcastCommand(Command, ABC):
+class BroadcastCommand(Command):
     """Base class for broadcast commands sent to all devices simultaneously.
 
     :param checksum_mode: Checksum calculation mode

@@ -43,12 +43,12 @@ logger = getLogger(__name__)
 
 @abstractmethod
 class SetCommand(Command):
-    """Set command configuration"""
+    """Set command configuration."""
 
 
 @dataclass
 class SetMicrostep(SetCommand):
-    """Set microstep command configuration
+    """Set microstep command configuration.
 
     :param store: Store flag
     :param microstep_value: Microstep value (0-255, 0 is 256 microsteps)
@@ -76,12 +76,12 @@ class SetMicrostep(SetCommand):
 
 @dataclass
 class SetMicrostepAll(SetMicrostep, BroadcastCommand):
-    """Set microstep for all motors"""
+    """Set microstep for all motors."""
 
 
 @dataclass
 class SetID(SetCommand):
-    """Set ID
+    """Set ID.
 
     :param store: Store flag
     :param device_id: Device ID
@@ -109,7 +109,7 @@ class SetID(SetCommand):
 
 @dataclass
 class SetLoopMode(SetCommand):
-    """Set loop mode command configuration
+    """Set loop mode command configuration.
 
     :param store: Store flag
     :param control_mode: Control mode
@@ -129,13 +129,13 @@ class SetLoopMode(SetCommand):
 
 @dataclass
 class SetLoopModeAll(SetLoopMode, BroadcastCommand):
-    """Set loop mode for all motors"""
+    """Set loop mode for all motors."""
 
 
 @dataclass
 class SetOpenLoopCurrent(SetCommand):
-    """Set open loop current
-
+    """Set open loop current.
+    
     :param store: Store flag
     :param open_loop_current: Open loop current
     """
@@ -202,12 +202,12 @@ class SetPID(SetCommand):
 
 @dataclass
 class SetPIDAll(SetPID, BroadcastCommand):
-    """Set PID parameters for all motors command configuration"""
+    """Set PID parameters for all motors command configuration."""
 
 
 @dataclass
 class SetStartSpeed(SetCommand):
-    """Set start speed command configuration
+    """Set start speed command configuration.
 
     :param store: Store flag
     :param direction: Direction
@@ -244,12 +244,12 @@ class SetStartSpeed(SetCommand):
 
 @dataclass
 class SetStartSpeedAll(SetStartSpeed, BroadcastCommand):
-    """Set start speed for all motors command configuration"""
+    """Set start speed for all motors command configuration."""
 
 
 @dataclass
 class SetReduction(SetCommand):
-    """Set speed reduction command configuration
+    """Set speed reduction command configuration.
 
     :param store: Store flag
     :param speed_reduction: Speed reduction
@@ -277,12 +277,12 @@ class SetReduction(SetCommand):
 
 @dataclass
 class SetReductionAll(SetReduction, BroadcastCommand):
-    """Set speed reduction for all motors command configuration"""
+    """Set speed reduction for all motors command configuration."""
 
 
 @dataclass
 class SetConfig(SetCommand):
-    """Set configuration command configuration
+    """Set configuration command configuration.
 
     :param store: Store flag
     :param motor_type: Motor type
@@ -369,4 +369,4 @@ class SetConfig(SetCommand):
 
 
 class SetConfigAll(SetConfig, BroadcastCommand):
-    """Set configuration for all motors command configuration"""
+    """Set configuration for all motors command configuration."""
