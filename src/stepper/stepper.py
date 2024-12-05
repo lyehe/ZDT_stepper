@@ -523,10 +523,10 @@ class SerialController:
             return int.from_bytes(result.data, "big")
         raise CommandError("Failed to read encoder value")
 
-    def get_input_pulse_count(self) -> int:
+    def get_command_body_pulse_count(self) -> int:
         """Get input pulse count with direction"""
         cmd = self._create_command(
-            CMD_CODE.READ_INPUT_PULSE_COUNT, description="Read input pulse count"
+            CMD_CODE.READ_command_body_PULSE_COUNT, description="Read input pulse count"
         )
         result = self._execute(cmd)
         if result.success and result.data:

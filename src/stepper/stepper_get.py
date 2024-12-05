@@ -93,7 +93,7 @@ class GetVersion(GetCommand):
         return Code.GET_VERSION
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -151,7 +151,7 @@ class GetMotorRH(GetCommand):
         return Code.GET_MOTOR_R_H
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -206,7 +206,7 @@ class GetPID(GetCommand):
         return Code.GET_PID
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -274,7 +274,7 @@ class GetVoltage(GetCommand):
         return Code.GET_BUS_VOLTAGE
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -317,7 +317,7 @@ class GetPhaseCurrent(GetCommand):
         return Code.GET_PHASE_CURRENT
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -357,7 +357,7 @@ class GetEncoderValue(AnglePosition):
         return Code.GET_ENCODER_VALUE
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -399,7 +399,7 @@ class GetPulseCount(GetCommand):
         return Code.GET_PULSE_COUNT
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         """Command bytes."""
         return bytes([self.addr, self._code])
 
@@ -442,7 +442,7 @@ class GetTarget(AnglePosition):
         return Code.GET_TARGET
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -481,7 +481,7 @@ class GetOpenLoopSetpoint(AnglePosition):
         return Code.GET_OPEN_LOOP_SETPOINT
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -520,7 +520,7 @@ class GetSpeed(GetCommand):
         return Code.GET_SPEED
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -561,7 +561,7 @@ class GetPosition(AnglePosition):
         return Code.GET_POS
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -604,7 +604,7 @@ class GetError(AnglePosition):
         return Code.GET_ERROR
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -647,7 +647,7 @@ class GetStatus(GetCommand):
         return Code.GET_STATUS
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -706,7 +706,7 @@ class GetConfig(GetCommand):
         return Code.GET_CONFIG
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.GET_CONFIG])
 
     @property
@@ -802,7 +802,7 @@ class GetSysStatus(GetCommand):
         return Code.GET_SYS_STATUS
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.GET_SYS_STATUS])
 
     @property

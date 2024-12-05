@@ -1,124 +1,108 @@
+"""Move commands for stepper motor."""
+
 from dataclasses import dataclass, field
 from logging import getLogger
 
-from stepper_constants import (
+from .stepper_command import Command, _add_checksum
+from .stepper_constants import (
     AbsoluteFlag,
-    Acceleration,
     Code,
     Direction,
     EnableFlag,
     Protocol,
     PulseCount,
-    Speed,
+    StatusCode,
     SyncFlag,
 )
-
-from .stepper_command import BroadcastCommand, Command, _add_checksum
+from .stepper_exceptions import CommandError
+from .stepper_parameters import PositionParams, VelocityParams
 
 logger = getLogger(__name__)
 
 
-@dataclass
 class MoveCommand(Command):
-    """Move command configuration"""
+    """Move command configuration. All move commands inherit from this class.
 
-    sync: SyncFlag = SyncFlag.default
+    :param sync: Sync flag
+
+    """
+
+    _response_length: int = 4
+
+    def _validate_setting(self, setting: SyncFlag | None) -> SyncFlag:
+        """Validate setting."""
+        if setting is None:
+            logger.warning("Sync flag not provided, using default")
+            setting = SyncFlag.default
+        return setting
+
+    def _process_data(self, data: bytes) -> bool:
+        """Process data from response."""
+        if data == StatusCode.SUCCESS.bytes:
+            return True
+        raise CommandError(f"Move command failed with status code: {data}")
 
 
-@dataclass
 class Enable(MoveCommand):
-    """Enable command
+    """Enable command.
 
+    Usage example: Enable(addr=0x01, sync=SyncFlag.ENABLE)
     :param enable_status: Enable status flag
     """
 
-    enable_status: EnableFlag = EnableFlag.ENABLE
+    _code: Code = Code.ENABLE
+
+    def _validate_params(self, enable_status: EnableFlag | None) -> EnableFlag:
+        """Validate parameters."""
+        if enable_status is None:
+            enable_status = EnableFlag.ENABLE
+        return enable_status
 
     @property
-    def _code(self) -> Code:
-        return Code.ENABLE
-
-    @property
-    def _input(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.ENABLE, self.enable_status, self.sync])
+    def _command_body(self) -> bytes:
+        return bytes([self.addr, self._code, Protocol.ENABLE, self.params, self.setting])
 
 
-@dataclass
-class Disable(MoveCommand):
-    """Disable command, releases the motor from the enable state"""
+class Disable(Enable):
+    """Disable command, releases the motor from the enable state."""
 
-    @property
-    def _code(self) -> Code:
-        return Code.ENABLE
-
-    @property
-    def _input(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.ENABLE, EnableFlag.DISABLE, self.sync])
+    def _validate_params(self, enable_status: EnableFlag | None) -> EnableFlag:
+        """Validate parameters."""
+        if enable_status is None:
+            enable_status = EnableFlag.DISABLE
+        return enable_status
 
 
-@dataclass
 class Jog(MoveCommand):
-    """Jog command configuration
+    """Jog command configuration.
 
-    :param direction: Movement direction
-    :param speed: Movement speed
-    :param acceleration: Movement acceleration
-    :param sync: Sync flag
+    :param velocity_data: Configuration for movement velocity, including speed and acceleration
+    :param sync: Sync flag (inherited from MoveCommand)
     """
 
-    direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
+    _code: Code = Code.JOG
 
     @property
-    def _code(self) -> Code:
-        return Code.JOG
+    def _command_body(self) -> bytes:
+        if isinstance(self.params, VelocityParams):
+            return bytes(
+                [
+                    self.addr,
+                    self._code,
+                    self.params.bytes,
+                    self.setting,
+                ]
+            )
+        raise ValueError("Invalid params type")
 
-    @property
-    def _input(self) -> bytes:
-        return bytes(
-            [
-                self.addr,
-                self._code,
-                self.direction,
-                *self.speed.bytes,
-                self.acceleration,
-                self.sync,
-            ]
-        )
-
-
-@dataclass
-class JogCW(Jog):
-    """Jog in the clockwise direction"""
-
-    direction: Direction = field(default=Direction.CW, init=False)
+    def _process_data(self, data: bytes) -> None:
+        self.success = data == StatusCode.SUCCESS
+        if not self.success:
+            raise CommandError(f"Jog command failed with status code: {data}")
 
 
-@dataclass
-class JogCCW(Jog):
-    """Jog in the counterclockwise direction"""
-
-    direction: Direction = field(default=Direction.CCW, init=False)
-
-
-@dataclass
-class JogStop(Jog):
-    """Stops the jog movement"""
-
-    speed: Speed = field(default=Speed.stop, init=False)
-
-
-@dataclass
-class JogStopAll(Jog, BroadcastCommand):
-    """Stops all jog movements across all devices"""
-
-    speed: Speed = field(default=Speed.stop, init=False)
-
-
-@dataclass
 class Move(MoveCommand):
-    """Move command configuration
+    """Move command configuration.
 
     :param direction: Movement direction
     :param speed: Movement speed
@@ -128,30 +112,20 @@ class Move(MoveCommand):
     :param sync: Sync flag
     """
 
-    direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
-    pulse_count: PulseCount = PulseCount.default
-    mode: AbsoluteFlag = AbsoluteFlag.default
+    _code: Code = Code.MOVE
 
     @property
-    def _code(self) -> Code:
-        return Code.MOVE
-
-    @property
-    def _input(self) -> bytes:
-        return bytes(
-            [
-                self.addr,
-                self._code,
-                self.direction,
-                *self.speed.bytes,
-                self.acceleration,
-                *self.pulse_count.bytes,
-                self.mode,
-                self.sync,
-            ]
-        )
+    def _command_body(self) -> bytes:
+        if isinstance(self.params, PositionParams):
+            return bytes(
+                [
+                    self.addr,
+                    self._code,
+                    self.params.bytes,
+                    self.setting,
+                ]
+            )
+        raise ValueError("Invalid params type")
 
 
 @dataclass
@@ -178,7 +152,7 @@ class MoveDeg(Move):
         else:
             self.direction = Direction.CW
         self.pulse_count = PulseCount(self.degrees * self.microstep_per_degree)
-        self.send_command = _add_checksum(self.checksum_mode, self._input)
+        self.send_command = _add_checksum(self.checksum_mode, self._command_body)
 
 
 @dataclass
@@ -200,7 +174,7 @@ class EStop(MoveCommand):
         return Code.ESTOP
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.ESTOP, self.sync])
 
 
@@ -218,5 +192,5 @@ class SyncMove(Command):
         return Code.SYNC_MOVE
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.SYNC_MOVE])

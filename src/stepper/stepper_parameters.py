@@ -1,4 +1,4 @@
-"""Metadata container classes."""
+"""params container classes."""
 
 import json
 from dataclasses import asdict, dataclass
@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TypeAlias
 
 import yaml
+from serial import Serial
 
 from .stepper_constants import (
     AbsoluteFlag,
@@ -45,7 +46,6 @@ from .stepper_constants import (
     StallSpeed,
     StallTime,
     StoreFlag,
-    SyncFlag,
     VoltageUnit,
 )
 
@@ -53,15 +53,25 @@ PathVar: TypeAlias = Path | str
 
 
 @dataclass
-class StepperMetadata:
-    """Metadata class for stepper metadata."""
+class DeviceParams:
+    """Device parameter class."""
+
+    serial_connection: Serial
+    addr: Address = Address.default
+    checksum_mode: ChecksumMode = ChecksumMode.default
+    delay: float | None = None
+
+
+@dataclass
+class StepperParams:
+    """Stepper parameter class."""
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "StepperMetadata":
+    def from_dict(cls, data: dict) -> "StepperParams":
         """Convert from dictionary."""
         return cls(**data)
 
@@ -71,7 +81,7 @@ class StepperMetadata:
             json.dump(self.to_dict(), f, indent=2)
 
     @classmethod
-    def from_json(cls, path: PathVar) -> "StepperMetadata":
+    def from_json(cls, path: PathVar) -> "StepperParams":
         """Convert from JSON."""
         with open(path) as f:
             return cls.from_dict(json.load(f))
@@ -82,37 +92,40 @@ class StepperMetadata:
             yaml.dump(self.to_dict(), f)
 
     @classmethod
-    def from_yaml(cls, path: PathVar) -> "StepperMetadata":
+    def from_yaml(cls, path: PathVar) -> "StepperParams":
         """Convert from YAML."""
         with open(path) as f:
             return cls.from_dict(yaml.safe_load(f))
 
 
 @dataclass
-class PositionData(StepperMetadata):
-    """Position data metadata."""
+class VelocityParams(StepperParams):
+    """Velocity data params."""
+
+    direction: Direction = Direction.default
+    speed: Speed = Speed.default
+    acceleration: Acceleration = Acceleration.default
+
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return bytes([self.direction, *self.speed.bytes, self.acceleration])
+
+
+@dataclass
+class PositionParams(StepperParams):
+    """Position data params."""
 
     direction: Direction = Direction.default
     speed: Speed = Speed.default
     acceleration: Acceleration = Acceleration.default
     pulse_count: PulseCount = PulseCount.default
     absolute: AbsoluteFlag = AbsoluteFlag.default
-    sync: SyncFlag = SyncFlag.default
 
 
 @dataclass
-class VelocityData(StepperMetadata):
-    """Velocity data metadata."""
-
-    direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
-    sync: SyncFlag = SyncFlag.default
-
-
-@dataclass
-class HomeMetadata(StepperMetadata):
-    """Home parameters metadata.
+class HomingParams(StepperParams):
+    """Home parameters params.
 
     :param store: Store flag
     :param homing_mode: Homing mode
@@ -137,8 +150,8 @@ class HomeMetadata(StepperMetadata):
 
 
 @dataclass
-class MotorMetadata(StepperMetadata):
-    """Motor parameters metadata.
+class ConfigParams(StepperParams):
+    """Motor parameters params.
 
     :param motor_type: Motor type
     :param control_mode: Control mode
@@ -187,8 +200,8 @@ class MotorMetadata(StepperMetadata):
 
 
 @dataclass
-class SystemMetadata(StepperMetadata):
-    """System parameters metadata.
+class SystemParams(StepperParams):
+    """System parameters params.
 
     :param voltage_unit: Voltage unit
     :param current_unit: Current unit
@@ -231,8 +244,8 @@ class SystemMetadata(StepperMetadata):
 
 
 @dataclass
-class PIDMetadata(StepperMetadata):
-    """PID parameters metadata.
+class PIDParams(StepperParams):
+    """PID parameters params.
 
     :param pid_p: PID P
     :param pid_i: PID I
@@ -245,57 +258,57 @@ class PIDMetadata(StepperMetadata):
 
 
 @dataclass
-class ReadableMetadata:
-    """Readable metadata.
+class Readables:
+    """Readable params.
 
-    :param system_metadata: System metadata parameters
-    :param motor_metadata: Motor metadata parameters
-    :param home_metadata: Home metadata parameters
-    :param pid_metadata: PID metadata parameters
+    :param system_params: System params parameters
+    :param motor_params: Motor params parameters
+    :param home_params: Home params parameters
+    :param pid_params: PID params parameters
     """
 
-    system_metadata: SystemMetadata | None = None
-    motor_metadata: MotorMetadata | None = None
-    home_metadata: HomeMetadata | None = None
-    pid_metadata: PIDMetadata | None = None
+    system_params: SystemParams | None = None
+    motor_params: ConfigParams | None = None
+    home_params: HomingParams | None = None
+    pid_params: PIDParams | None = None
 
     @property
     def __dict__(self) -> dict:
         """Dictionary representation."""
         result = {}
-        if self.system_metadata is not None:
-            result.update(asdict(self.system_metadata))
-        if self.motor_metadata is not None:
-            result.update(asdict(self.motor_metadata))
-        if self.home_metadata is not None:
-            result.update(asdict(self.home_metadata))
-        if self.pid_metadata is not None:
-            result.update(asdict(self.pid_metadata))
+        if self.system_params is not None:
+            result.update(asdict(self.system_params))
+        if self.motor_params is not None:
+            result.update(asdict(self.motor_params))
+        if self.home_params is not None:
+            result.update(asdict(self.home_params))
+        if self.pid_params is not None:
+            result.update(asdict(self.pid_params))
         return result
 
 
 @dataclass
-class WritableMetadata:
-    """Writable metadata."""
+class Writables:
+    """Writable params."""
 
-    position_metadata: PositionData | None = None
-    velocity_metadata: VelocityData | None = None
-    home_metadata: HomeMetadata | None = None
-    motor_metadata: MotorMetadata | None = None
-    pid_metadata: PIDMetadata | None = None
+    position_params: PositionParams | None = None
+    velocity_params: VelocityParams | None = None
+    home_params: HomingParams | None = None
+    motor_params: ConfigParams | None = None
+    pid_params: PIDParams | None = None
 
     @property
     def __dict__(self) -> dict:
         """Dictionary representation."""
         result = {}
-        if self.position_metadata is not None:
-            result.update(asdict(self.position_metadata))
-        if self.velocity_metadata is not None:
-            result.update(asdict(self.velocity_metadata))
-        if self.home_metadata is not None:
-            result.update(asdict(self.home_metadata))
-        if self.motor_metadata is not None:
-            result.update(asdict(self.motor_metadata))
-        if self.pid_metadata is not None:
-            result.update(asdict(self.pid_metadata))
+        if self.position_params is not None:
+            result.update(asdict(self.position_params))
+        if self.velocity_params is not None:
+            result.update(asdict(self.velocity_params))
+        if self.home_params is not None:
+            result.update(asdict(self.home_params))
+        if self.motor_params is not None:
+            result.update(asdict(self.motor_params))
+        if self.pid_params is not None:
+            result.update(asdict(self.pid_params))
         return result

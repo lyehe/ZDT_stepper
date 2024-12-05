@@ -4,7 +4,7 @@
 from dataclasses import asdict, dataclass
 from logging import getLogger
 
-from .stepper_command import BroadcastCommand, Command, _int
+from .stepper_command import Command, _int
 from .stepper_constants import (
     Address,
     AutoHoming,
@@ -25,7 +25,6 @@ from .stepper_constants import (
 logger = getLogger(__name__)
 
 
-@dataclass
 class SetHome(Command):
     """Set home command configuration.
 
@@ -34,21 +33,16 @@ class SetHome(Command):
 
     store: StoreFlag = StoreFlag.default
 
-    @property
+    @property   
     def _code(self) -> Code:
         return Code.SET_HOME
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.SET_HOME, self.store])
 
 
-@dataclass
-class SetHomeAll(SetHome, BroadcastCommand):
-    """Set home all command configuration."""
 
-
-@dataclass
 class Home(Command):
     """Home command configuration.
 
@@ -64,16 +58,9 @@ class Home(Command):
         return Code.HOME
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, self.homing_mode, self.sync])
 
-
-@dataclass
-class HomeAll(Home, BroadcastCommand):
-    """Home all command configuration."""
-
-
-@dataclass
 class StopHome(Command):
     """Stop homing command configuration."""
 
@@ -82,7 +69,7 @@ class StopHome(Command):
         return Code.STOP_HOME
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code, Protocol.STOP_HOME])
 
 
@@ -95,7 +82,7 @@ class GetHomeParam(Command):
         return Code.GET_HOME_PARAM
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property
@@ -147,7 +134,7 @@ class SetHomeParam(Command):
         return Code.SET_HOME_PARAM
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes(
             [
                 self.addr,
@@ -175,7 +162,7 @@ class GetHomeStatus(Command):
         return Code.GET_HOME_STATUS
 
     @property
-    def _input(self) -> bytes:
+    def _command_body(self) -> bytes:
         return bytes([self.addr, self._code])
 
     @property

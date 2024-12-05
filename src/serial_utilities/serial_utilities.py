@@ -51,14 +51,14 @@ class TestCase:
     check_digit: int | list[int] | None = None
     timeout: float = 0.1
 
-    _input_bytes: bytes | None = field(init=False)
+    _command_body_bytes: bytes | None = field(init=False)
     _expected_bytes: bytes | None = field(init=False)
 
     def __post_init__(self):
         """Post-initialization checks."""
         # Validate input and expected can be converted to bytes
         try:
-            self._input_bytes = bytes.fromhex(self.input)
+            self._command_body_bytes = bytes.fromhex(self.input)
         except ValueError as err:
             raise ValueError(f"Invalid input hex string: {err}") from err
 
@@ -80,7 +80,7 @@ class TestCase:
     @property
     def input_bytes(self) -> bytes:
         """Convert hex string to bytes."""
-        return self._input_bytes
+        return self._command_body_bytes
 
     @property
     def expected_bytes(self) -> bytes:
@@ -127,7 +127,7 @@ class PortInfo:
 
 
 def list_ports_info() -> dict[str, PortInfo]:
-    """Get available serial ports with detailed metadata.
+    """Get available serial ports with detailed params.
 
     :return: Dictionary mapping port device names to PortInfo objects
     """

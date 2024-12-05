@@ -13,6 +13,35 @@ COMPort: TypeAlias = str | Path
 Data: TypeAlias = bytes | None
 
 
+class HasBytes(ABC):
+    """Mixin class for classes that have a bytes property."""
+
+    @property
+    @abstractmethod
+    def bytes(self) -> bytes:
+        """Return bytes representation."""
+        ...
+
+
+class HasDefault(ABC):
+    """Mixin class for classes that have a default property."""
+
+    @property
+    @abstractmethod
+    def default(self) -> int:
+        """Default value."""
+        ...
+
+
+class ExtendedIntEnum(IntEnum, HasBytes):
+    """An integer enumeration."""
+
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return self.value.to_bytes(1, "big")
+
+
 class SystemConstants(NamedTuple):
     """System constants for stepper motor protocol."""
 
@@ -20,7 +49,7 @@ class SystemConstants(NamedTuple):
     MAX_RETRIES: int = 3
 
 
-class Code(IntEnum):
+class Code(ExtendedIntEnum):
     """Command codes for stepper motor protocol."""
 
     # Move Commands
@@ -71,14 +100,11 @@ class Code(IntEnum):
     SET_START_SPEED = 0xF7  # checked
     SET_REDUCTION = 0x4F  # checked
 
-    # Batch Commands
-
-    # Error Codes
-    ERROR = 0x00
+    ERROR = 0x00  # Error Codes
 
 
 # Protocol constants
-class Protocol(IntEnum):
+class Protocol(ExtendedIntEnum):
     """Protocol constants for command codes and responses."""
 
     # Move Commands
@@ -115,7 +141,7 @@ class Protocol(IntEnum):
     SET_REDUCTION = 0x71
 
 
-class StatusCode(IntEnum):
+class StatusCode(ExtendedIntEnum):
     """Status codes for read commands."""
 
     FIXED_CHECKSUM_BYTE = 0x6B
@@ -125,7 +151,7 @@ class StatusCode(IntEnum):
 
 
 class MetaParam(NamedTuple):
-    """Metadata for a variable class configurations."""
+    """params for a variable class configurations."""
 
     minimum: int
     maximum: int
@@ -133,7 +159,7 @@ class MetaParam(NamedTuple):
     digits: int
 
 
-class RangedInt(int, ABC):
+class RangedInt(int, HasBytes, HasDefault):
     """A configuration integer constrained to a specific range."""
 
     meta: MetaParam
@@ -162,7 +188,7 @@ class RangedInt(int, ABC):
         return self.meta.digits
 
 
-class OptionEnum(IntEnum, ABC):
+class OptionEnum(ExtendedIntEnum, ABC, HasDefault):
     """An enumeration with a default value."""
 
     @abstractmethod
@@ -179,6 +205,7 @@ class Address(RangedInt):
     """
 
     meta = MetaParam(minimum=0, maximum=256, default=1, digits=1)
+
     # 0-255, 1 is default address, 0 is broadcast
 
     @property
@@ -192,7 +219,7 @@ class Address(RangedInt):
         return 0
 
 
-class SyncFlag(OptionEnum):
+class SyncFlag(ExtendedIntEnum, HasDefault):
     """Sync flag for move commands.
 
     Used in: enable, jog, move, estop
