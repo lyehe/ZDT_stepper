@@ -1,7 +1,7 @@
 """params container classes."""
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TypeAlias
 
@@ -54,11 +54,17 @@ PathVar: TypeAlias = Path | str
 
 @dataclass
 class DeviceParams:
-    """Device parameter class."""
+    """Device parameter class.
+
+    :param serial_connection: Serial connection object
+    :param address: Device address
+    :param checksum_mode: Checksum mode
+    :param delay: Communication delay in seconds
+    """
 
     serial_connection: Serial
-    addr: Address = Address.default
-    checksum_mode: ChecksumMode = ChecksumMode.default
+    address: Address = field(default_factory=lambda: Address.default)
+    checksum_mode: ChecksumMode = field(default_factory=lambda: ChecksumMode.default)
     delay: float | None = None
 
 
@@ -99,12 +105,12 @@ class StepperParams:
 
 
 @dataclass
-class VelocityParams(StepperParams):
+class JogParams(StepperParams):
     """Velocity data params."""
 
     direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
+    speed: Speed = field(default_factory=lambda: Speed.default)
+    acceleration: Acceleration = field(default_factory=lambda: Acceleration.default)
 
     @property
     def bytes(self) -> bytes:
@@ -116,11 +122,24 @@ class VelocityParams(StepperParams):
 class PositionParams(StepperParams):
     """Position data params."""
 
-    direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
-    pulse_count: PulseCount = PulseCount.default
-    absolute: AbsoluteFlag = AbsoluteFlag.default
+    direction: Direction = field(default_factory=lambda: Direction.default)
+    speed: Speed = field(default_factory=lambda: Speed.default)
+    acceleration: Acceleration = field(default_factory=lambda: Acceleration.default)
+    pulse_count: PulseCount = field(default_factory=lambda: PulseCount.default)
+    absolute: AbsoluteFlag = field(default_factory=lambda: AbsoluteFlag.default)
+
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return bytes(
+            [
+                self.direction,
+                *self.speed.bytes,
+                self.acceleration,
+                *self.pulse_count.bytes,
+                self.absolute,
+            ]
+        )
 
 
 @dataclass
@@ -148,6 +167,23 @@ class HomingParams(StepperParams):
     collision_detection_time: CollisionDetectionTime
     auto_home: AutoHoming
 
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return bytes(
+            [
+                self.store,
+                self.homing_mode,
+                self.homing_direction,
+                *self.homing_speed.bytes,
+                self.homing_timeout,
+                *self.collision_detection_speed.bytes,
+                self.collision_detection_current,
+                self.collision_detection_time,
+                self.auto_home,
+            ]
+        )
+
 
 @dataclass
 class ConfigParams(StepperParams):
@@ -166,7 +202,7 @@ class ConfigParams(StepperParams):
     :param max_voltage: Maximum voltage
     :param baud_rate: Baud rate
     :param can_rate: CAN rate
-    :param device_id: Device ID
+    :param address: Device ID
     :param checksum_mode: Checksum mode
     :param response_mode: Response mode
     :param stall_protect: Stall protection
@@ -176,27 +212,58 @@ class ConfigParams(StepperParams):
     :param pos_window: Position window
     """
 
-    motor_type: MotorType = MotorType.default
-    control_mode: ControlMode = ControlMode.default
-    communication_mode: CommunicationMode = CommunicationMode.default
-    enable_level: EnableLevel = EnableLevel.default
-    default_direction: Direction = Direction.default
-    microsteps: Microstep = Microstep.default
-    microstep_interp: MicrostepInterp = MicrostepInterp.default
-    screen_off: ScreenOff = ScreenOff.default
-    open_loop_current: OpenLoopCurrent = OpenLoopCurrent.default
-    max_closed_loop_current: ClosedLoopCurrent = ClosedLoopCurrent.default
-    max_voltage: MaxVoltage = MaxVoltage.default
-    baud_rate: BaudRate = BaudRate.default
-    can_rate: CanRate = CanRate.default
-    device_id: Address = Address.default
-    checksum_mode: ChecksumMode = ChecksumMode.default
-    response_mode: ResponseMode = ResponseMode.default
-    stall_protect: StallProtect = StallProtect.default
-    stall_speed: StallSpeed = StallSpeed.default
-    stall_current: StallCurrent = StallCurrent.default
-    stall_time: StallTime = StallTime.default
-    on_target_window: OnTargetWindow = OnTargetWindow.default
+    motor_type: MotorType = field(default_factory=lambda: MotorType.default)
+    control_mode: ControlMode = field(default_factory=lambda: ControlMode.default)
+    communication_mode: CommunicationMode = field(default_factory=lambda: CommunicationMode.default)
+    enable_level: EnableLevel = field(default_factory=lambda: EnableLevel.default)
+    default_direction: Direction = field(default_factory=lambda: Direction.default)
+    microsteps: Microstep = field(default_factory=lambda: Microstep.default)
+    microstep_interp: MicrostepInterp = field(default_factory=lambda: MicrostepInterp.default)
+    screen_off: ScreenOff = field(default_factory=lambda: ScreenOff.default)
+    open_loop_current: OpenLoopCurrent = field(default_factory=lambda: OpenLoopCurrent.default)
+    max_closed_loop_current: ClosedLoopCurrent = field(
+        default_factory=lambda: ClosedLoopCurrent.default
+    )
+    max_voltage: MaxVoltage = field(default_factory=lambda: MaxVoltage.default)
+    baud_rate: BaudRate = field(default_factory=lambda: BaudRate.default)
+    can_rate: CanRate = field(default_factory=lambda: CanRate.default)
+    address: Address = field(default_factory=lambda: Address.default)
+    checksum_mode: ChecksumMode = field(default_factory=lambda: ChecksumMode.default)
+    response_mode: ResponseMode = field(default_factory=lambda: ResponseMode.default)
+    stall_protect: StallProtect = field(default_factory=lambda: StallProtect.default)
+    stall_speed: StallSpeed = field(default_factory=lambda: StallSpeed.default)
+    stall_current: StallCurrent = field(default_factory=lambda: StallCurrent.default)
+    stall_time: StallTime = field(default_factory=lambda: StallTime.default)
+    on_target_window: OnTargetWindow = field(default_factory=lambda: OnTargetWindow.default)
+
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return bytes(
+            [
+                self.motor_type,
+                self.control_mode,
+                self.communication_mode,
+                self.enable_level,
+                self.default_direction,
+                self.microsteps,
+                self.microstep_interp,
+                self.screen_off,
+                *self.open_loop_current.bytes,
+                *self.max_closed_loop_current.bytes,
+                *self.max_voltage.bytes,
+                self.baud_rate,
+                self.can_rate,
+                self.address,
+                self.checksum_mode,
+                self.response_mode,
+                self.stall_protect,
+                *self.stall_speed.bytes,
+                *self.stall_current.bytes,
+                self.stall_time,
+                self.on_target_window,
+            ]
+        )
 
 
 @dataclass
@@ -256,6 +323,11 @@ class PIDParams(StepperParams):
     pid_i: Kpid = Kpid.default_ki
     pid_d: Kpid = Kpid.default_kd
 
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return bytes([*self.pid_p.bytes, *self.pid_i.bytes, *self.pid_d.bytes])
+
 
 @dataclass
 class Readables:
@@ -292,7 +364,7 @@ class Writables:
     """Writable params."""
 
     position_params: PositionParams | None = None
-    velocity_params: VelocityParams | None = None
+    velocity_params: JogParams | None = None
     home_params: HomingParams | None = None
     motor_params: ConfigParams | None = None
     pid_params: PIDParams | None = None

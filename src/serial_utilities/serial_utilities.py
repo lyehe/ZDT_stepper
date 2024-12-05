@@ -77,6 +77,14 @@ class TestCase:
                 )
                 self.check_digit = None
 
+    @classmethod
+    def default(cls) -> "TestCase":
+        """Get default test case.
+
+        :return: Default TestCase instance
+        """
+        return cls(input="011F6B", expected="011FFF786B", check_digit=[1], timeout=0.1)
+
     @property
     def input_bytes(self) -> bytes:
         """Convert hex string to bytes."""
@@ -244,8 +252,9 @@ def print_ports() -> None:
     print(f"Available ports: {[port.device for port in list_ports.comports()]}")
 
 
-def print_ports_info(ports_info: dict[str, PortInfo]) -> None:
+def print_ports_info() -> None:
     """Print port information."""
+    ports_info = list_ports_info()
     print("-" * 125)
     print(
         f"{'Port':<10} {'Description':<30} {'VID':<5} {'PID':<5} {'Manufacturer':<25} "
@@ -341,7 +350,7 @@ if __name__ == "__main__":
         print_ports()
 
     if args.info:
-        print_ports_info(list_ports_info())
+        print_ports_info()
 
     if args.test:
         if not (args.port and args.baudrate):

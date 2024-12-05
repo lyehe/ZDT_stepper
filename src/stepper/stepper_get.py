@@ -95,14 +95,14 @@ class GetVersion(GetCommand):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "firmware_version": response[2],
             "hardware_version": response[3],
@@ -153,14 +153,14 @@ class GetMotorRH(GetCommand):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "phase_resistance": _int(response[2:4]),  # mOhm
             "phase_inductance": _int(response[4:6]),  # uH
@@ -208,14 +208,14 @@ class GetPID(GetCommand):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "kp": _int(response[2:6]),
             "ki": _int(response[6:10]),
@@ -276,14 +276,14 @@ class GetVoltage(GetCommand):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "bus_voltage": _int(response[2:4]),  # mV
             "checksum": response[4],
@@ -319,14 +319,14 @@ class GetPhaseCurrent(GetCommand):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "phase_current": _int(response[2:4]),  # mA
             "checksum": response[4],
@@ -359,14 +359,14 @@ class GetEncoderValue(AnglePosition):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "calibrated_encoder_value": _int(response[2:4]),
             "checksum": response[4],
@@ -401,14 +401,14 @@ class GetPulseCount(GetCommand):
     @property
     def _command_body(self) -> bytes:
         """Command bytes."""
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Response dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "pulse_count": _signed_int(response[2:7]),
             "checksum": response[7],
@@ -443,13 +443,13 @@ class GetTarget(AnglePosition):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "motor_target_position": _signed_int(response[2:7]),
             "checksum": response[7],
@@ -482,13 +482,13 @@ class GetOpenLoopSetpoint(AnglePosition):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "motor_open_loop_setpoint": _signed_int(response[2:7]),
             "checksum": response[7],
@@ -521,13 +521,13 @@ class GetSpeed(GetCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "motor_real_time_speed": _signed_int(response[2:5]),
             "checksum": response[5],
@@ -562,13 +562,13 @@ class GetPosition(AnglePosition):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "motor_real_time_position": _signed_int(response[2:7]),
             "checksum": response[7],
@@ -605,13 +605,13 @@ class GetError(AnglePosition):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "motor_position_error": _signed_int(response[2:7]),
             "checksum": response[7],
@@ -648,13 +648,13 @@ class GetStatus(GetCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "ready_status": StepperStatus(response[2]),
             "checksum": response[3],
@@ -707,13 +707,13 @@ class GetConfig(GetCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.GET_CONFIG])
+        return bytes([self.address, self._code, Protocol.GET_CONFIG])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]),
             "byte_length": response[2],
             "param_count": response[3],
@@ -730,7 +730,7 @@ class GetConfig(GetCommand):
             "max_voltage": _int(response[16:18]),
             "baud_rate": BaudRate(response[18]),
             "can_rate": CanRate(response[19]),
-            "device_id": Address(response[20]),
+            "address": Address(response[20]),
             "checksum_mode": ChecksumMode(response[21]),
             "response_mode": ResponseMode(response[22]),
             "stall_protect": StallProtect(response[23]),
@@ -747,7 +747,7 @@ class GetConfig(GetCommand):
     ) -> tuple[int, ...]:
         response = self.response_dict.copy()
         response.pop("checksum")
-        response.pop("addr")
+        response.pop("address")
         response.pop("code")
         response.pop("byte_length")
         response.pop("param_count")
@@ -773,7 +773,7 @@ class GetConfig(GetCommand):
             / self.voltage_unit.value,
             "baud_rate": BaudRate(response[18]).name,
             "can_rate": CanRate(response[19]).name,
-            "device_id": Address(response[20]),
+            "address": Address(response[20]),
             "checksum_mode": ChecksumMode(response[21]).name,
             "response_mode": ResponseMode(response[22]).name,
             "stall_protect": StallProtect(response[23]).name,
@@ -803,13 +803,13 @@ class GetSysStatus(GetCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.GET_SYS_STATUS])
+        return bytes([self.address, self._code, Protocol.GET_SYS_STATUS])
 
     @property
     def response_dict(self) -> dict[str, int]:
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]),
             "byte_length": response[2],
             "param_count": response[3],
@@ -829,7 +829,7 @@ class GetSysStatus(GetCommand):
     def raw_value(self) -> tuple[int, ...]:
         response = self.response_dict.copy()
         response.pop("checksum")
-        response.pop("addr")
+        response.pop("address")
         response.pop("code")
         response.pop("byte_length")
         response.pop("param_count")

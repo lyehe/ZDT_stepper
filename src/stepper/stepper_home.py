@@ -39,7 +39,7 @@ class SetHome(Command):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.SET_HOME, self.store])
+        return bytes([self.address, self._code, Protocol.SET_HOME, self.store])
 
 
 
@@ -59,7 +59,7 @@ class Home(Command):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code, self.homing_mode, self.sync])
+        return bytes([self.address, self._code, self.homing_mode, self.sync])
 
 class StopHome(Command):
     """Stop homing command configuration."""
@@ -70,7 +70,7 @@ class StopHome(Command):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.STOP_HOME])
+        return bytes([self.address, self._code, Protocol.STOP_HOME])
 
 
 @dataclass
@@ -83,14 +83,14 @@ class GetHomeParam(Command):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Return home parameters as a dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "homing_mode": HomingMode(response[2]).name,
             "homing_direction": HomingDirection(response[3]).name,
@@ -137,7 +137,7 @@ class SetHomeParam(Command):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_HOME_PARAM,
                 self.store,
@@ -163,14 +163,14 @@ class GetHomeStatus(Command):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code])
+        return bytes([self.address, self._code])
 
     @property
     def response_dict(self) -> dict[str, int]:
         """Return homing status as a dictionary."""
         response = self.response
         return {
-            "addr": Address(response[0]),
+            "address": Address(response[0]),
             "code": Code(response[1]).name,
             "homing_status": HomingStatus(response[2]).name,
             "checksum": response[3],

@@ -35,7 +35,7 @@ class CalibrateEncoder(SystemCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return self._check_confirm(bytes([self.addr, self._code, Protocol.CAL_ENCODER]))
+        return self._check_confirm(bytes([self.address, self._code, Protocol.CAL_ENCODER]))
 
 
 @dataclass
@@ -48,7 +48,7 @@ class ZeroAllPositions(SystemCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return self._check_confirm(bytes([self.addr, self._code, Protocol.ZERO_ALL_POSITIONS]))
+        return self._check_confirm(bytes([self.address, self._code, Protocol.ZERO_ALL_POSITIONS]))
 
 
 @dataclass
@@ -61,7 +61,7 @@ class ClearStall(SystemCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return self._check_confirm(bytes([self.addr, self._code, Protocol.CLEAR_STALL]))
+        return self._check_confirm(bytes([self.address, self._code, Protocol.CLEAR_STALL]))
 
 
 @dataclass
@@ -74,4 +74,4 @@ class FactoryReset(SystemCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return self._check_confirm(bytes([self.addr, self._code, Protocol.FACTORY_RESET]))
+        return self._check_confirm(bytes([self.address, self._code, Protocol.FACTORY_RESET]))

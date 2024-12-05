@@ -1,7 +1,6 @@
 """Constants for stepper motor protocol."""
 
 import math
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from logging import getLogger
@@ -13,40 +12,23 @@ COMPort: TypeAlias = str | Path
 Data: TypeAlias = bytes | None
 
 
-class HasBytes(ABC):
-    """Mixin class for classes that have a bytes property."""
-
-    @property
-    @abstractmethod
-    def bytes(self) -> bytes:
-        """Return bytes representation."""
-        ...
-
-
-class HasDefault(ABC):
-    """Mixin class for classes that have a default property."""
-
-    @property
-    @abstractmethod
-    def default(self) -> int:
-        """Default value."""
-        ...
-
-
-class ExtendedIntEnum(IntEnum, HasBytes):
-    """An integer enumeration."""
+class ExtendedIntEnum(IntEnum):
+    """An integer enumeration with bytes representation."""
 
     @property
     def bytes(self) -> bytes:
         """Bytes representation."""
         return self.value.to_bytes(1, "big")
 
-
-class SystemConstants(NamedTuple):
-    """System constants for stepper motor protocol."""
-
-    SERIAL_TIMEOUT: float = 0.005
-    MAX_RETRIES: int = 3
+@dataclass(frozen=True)
+class SystemConstants:
+    """System constants for stepper motor protocol.
+    
+    :param SERIAL_TIMEOUT: Timeout for serial communication in seconds
+    :param MAX_RETRIES: Maximum number of retries for failed commands
+    """
+    SERIAL_TIMEOUT: float = field(default=0.005)
+    MAX_RETRIES: int = field(default=3)
 
 
 class Code(ExtendedIntEnum):
@@ -159,7 +141,7 @@ class MetaParam(NamedTuple):
     digits: int
 
 
-class RangedInt(int, HasBytes, HasDefault):
+class RangedInt(int):
     """A configuration integer constrained to a specific range."""
 
     meta: MetaParam
@@ -168,7 +150,7 @@ class RangedInt(int, HasBytes, HasDefault):
         """Create a new instance of RangedInt that is within the range."""
         if value is None:
             value = cls.meta.default
-        if not cls.meta.minimum <= value < cls.meta.maximum:
+        if not cls.meta.minimum <= value <= cls.meta.maximum:
             raise ValueError(f"Value must be between {cls.meta.minimum} and {cls.meta.maximum}")
         return super().__new__(cls, value)
 
@@ -188,23 +170,13 @@ class RangedInt(int, HasBytes, HasDefault):
         return self.meta.digits
 
 
-class OptionEnum(ExtendedIntEnum, ABC, HasDefault):
-    """An enumeration with a default value."""
-
-    @abstractmethod
-    @property
-    def default(self) -> int:
-        """Default value."""
-        ...
-
-
 class Address(RangedInt):
     """Address of the stepper motor.
 
     Used in all commands.
     """
 
-    meta = MetaParam(minimum=0, maximum=256, default=1, digits=1)
+    meta = MetaParam(minimum=0, maximum=255, default=1, digits=1)
 
     # 0-255, 1 is default address, 0 is broadcast
 
@@ -219,7 +191,7 @@ class Address(RangedInt):
         return 0
 
 
-class SyncFlag(ExtendedIntEnum, HasDefault):
+class SyncFlag(ExtendedIntEnum):
     """Sync flag for move commands.
 
     Used in: enable, jog, move, estop
@@ -227,14 +199,10 @@ class SyncFlag(ExtendedIntEnum, HasDefault):
 
     NO_SYNC = 0x00
     SYNC = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default sync flag."""
-        return self.NO_SYNC
+    default = NO_SYNC
 
 
-class StoreFlag(OptionEnum):
+class StoreFlag(ExtendedIntEnum):
     """Store flag for configuration commands.
 
     Used in: set_current, set_config, set_pid, save_speed, set_reduction
@@ -242,14 +210,10 @@ class StoreFlag(OptionEnum):
 
     TEMPORARY = 0x00
     PERMANENT = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default store flag."""
-        return self.TEMPORARY
+    default = TEMPORARY
 
 
-class EnableFlag(OptionEnum):
+class EnableFlag(ExtendedIntEnum):
     """Enable flag for move commands.
 
     Used in: enable
@@ -259,7 +223,7 @@ class EnableFlag(OptionEnum):
     ENABLE = 0x01
 
 
-class Direction(OptionEnum):
+class Direction(ExtendedIntEnum):
     """Direction of the stepper motor.
 
     Used in: jog, move, save_speed
@@ -267,11 +231,7 @@ class Direction(OptionEnum):
 
     CW = 0x00
     CCW = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default direction."""
-        return self.CW
+    default = CW
 
 
 class Speed(RangedInt):
@@ -304,10 +264,10 @@ class PulseCount(RangedInt):
     Used in: move
     """
 
-    meta = MetaParam(minimum=0, maximum=256**4, default=0, digits=4)
+    meta = MetaParam(minimum=0, maximum=256**4 - 1, default=0, digits=4)
 
 
-class AbsoluteFlag(OptionEnum):
+class AbsoluteFlag(ExtendedIntEnum):
     """Absolute flag for move commands.
 
     Used in: move
@@ -315,15 +275,11 @@ class AbsoluteFlag(OptionEnum):
 
     RELATIVE = 0x00
     ABSOLUTE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default absolute flag."""
-        return self.RELATIVE
+    default = RELATIVE
 
 
 # Homing variables
-class HomingMode(OptionEnum):
+class HomingMode(ExtendedIntEnum):
     """Homing mode for homing commands.
 
     Used in: home, set_home_param
@@ -333,14 +289,10 @@ class HomingMode(OptionEnum):
     SINGLE_TURN_DIRECTIONAL = 0x01
     MULTI_TURN_UNLIMITED = 0x02
     MULTI_TURN_LIMITED = 0x03
-
-    @property
-    def default(self) -> int:
-        """Default homing mode."""
-        return self.SINGLE_TURN_NEAREST
+    default = SINGLE_TURN_NEAREST
 
 
-class HomingDirection(OptionEnum):
+class HomingDirection(ExtendedIntEnum):
     """Homing direction for homing commands.
 
     Used in: set_home_param
@@ -348,11 +300,7 @@ class HomingDirection(OptionEnum):
 
     CW = 0x00
     CCW = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default homing direction."""
-        return self.CW
+    default = CW
 
 
 class HomingSpeed(RangedInt):
@@ -400,7 +348,7 @@ class CollisionDetectionTime(RangedInt):
     meta = MetaParam(minimum=0, maximum=500, default=60, digits=2)  # Unit: ms
 
 
-class AutoHoming(OptionEnum):
+class AutoHoming(ExtendedIntEnum):
     """Auto homing flag for homing commands.
 
     Used in: set_home_param
@@ -408,11 +356,7 @@ class AutoHoming(OptionEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default auto homing flag."""
-        return self.DISABLE
+    default = DISABLE
 
 
 @dataclass
@@ -449,7 +393,7 @@ class Kpid(RangedInt):
     Used in: set_pid
     """
 
-    meta = MetaParam(minimum=0, maximum=256**4, default=0, digits=4)
+    meta = MetaParam(minimum=0, maximum=256**4 - 1, default=0, digits=4)
 
     @property
     def default_kp(self) -> int:
@@ -495,7 +439,7 @@ class StepperStatus:
         }
 
 
-class MotorType(OptionEnum):
+class MotorType(ExtendedIntEnum):
     """Motor type for configuration commands.
 
     Used in: set_config
@@ -503,11 +447,7 @@ class MotorType(OptionEnum):
 
     D18 = 0x19  # 1.8 degrees per step
     D09 = 0x32  # 0.9 degrees per step
-
-    @property
-    def default(self) -> int:
-        """Default motor type."""
-        return self.D18
+    default = D18
 
     @property
     def degrees_per_step(self) -> float:
@@ -515,7 +455,7 @@ class MotorType(OptionEnum):
         return 1.8 if self == MotorType.D18 else 0.9
 
 
-class ControlMode(OptionEnum):
+class ControlMode(ExtendedIntEnum):
     """Control mode for configuration commands.
 
     Used in: set_config, set_mode
@@ -525,14 +465,10 @@ class ControlMode(OptionEnum):
     PUL_OPEN = 0x01
     PUL_FOC = 0x02
     ESI_RCO = 0x03
-
-    @property
-    def default(self) -> int:
-        """Default control mode."""
-        return self.PUL_FOC
+    default = PUL_FOC
 
 
-class CommunicationMode(OptionEnum):
+class CommunicationMode(ExtendedIntEnum):
     """Communication mode for configuration commands.
 
     Used in: set_config
@@ -542,14 +478,10 @@ class CommunicationMode(OptionEnum):
     ESI_AL0 = 0x01
     UART = 0x02
     CAN = 0x03
-
-    @property
-    def default(self) -> int:
-        """Default communication mode."""
-        return self.UART
+    default = UART
 
 
-class EnableLevel(OptionEnum):
+class EnableLevel(ExtendedIntEnum):
     """Enable level for configuration commands.
 
     Used in: set_config
@@ -558,11 +490,7 @@ class EnableLevel(OptionEnum):
     LOW = 0x00
     HIGH = 0x01
     HOLD = 0x02
-
-    @property
-    def default(self) -> int:
-        """Default enable level."""
-        return self.HOLD
+    default = HOLD
 
 
 class Microstep(RangedInt):
@@ -571,10 +499,10 @@ class Microstep(RangedInt):
     Used in: set_config, set_microstep
     """
 
-    meta = MetaParam(minimum=0, maximum=256, default=16, digits=1)  # 0x00 is 256 microsteps
+    meta = MetaParam(minimum=0, maximum=255, default=16, digits=1)  # 0x00 is 256 microsteps
 
 
-class MicrostepInterp(OptionEnum):
+class MicrostepInterp(ExtendedIntEnum):
     """Microstep interpolation for configuration commands.
 
     Used in: set_config
@@ -582,14 +510,10 @@ class MicrostepInterp(OptionEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default microstep interpolation."""
-        return self.ENABLE
+    default = ENABLE
 
 
-class ScreenOff(OptionEnum):
+class ScreenOff(ExtendedIntEnum):
     """Screen off flag for read commands.
 
     Used in: set_config
@@ -597,11 +521,7 @@ class ScreenOff(OptionEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default screen off flag."""
-        return self.DISABLE
+    default = DISABLE
 
 
 class OpenLoopCurrent(RangedInt):
@@ -631,7 +551,7 @@ class MaxVoltage(RangedInt):
     meta = MetaParam(minimum=0, maximum=5000, default=4000, digits=2)  # Unit: mV
 
 
-class BaudRate(OptionEnum):
+class BaudRate(ExtendedIntEnum):
     """Baud rate for serial communication configuration.
 
     Used in: set_config
@@ -646,14 +566,10 @@ class BaudRate(OptionEnum):
     BAUD_256000 = 0x06
     BAUD_512000 = 0x07
     BAUD_921600 = 0x08
-
-    @property
-    def default(self) -> int:
-        """Default baud rate."""
-        return self.BAUD_115200
+    default = BAUD_115200
 
 
-class CanRate(OptionEnum):
+class CanRate(ExtendedIntEnum):
     """CAN bus rate in bits per second for configuration.
 
     Used in: set_config
@@ -669,14 +585,10 @@ class CanRate(OptionEnum):
     CAN_500K = 0x07
     CAN_800K = 0x08
     CAN_1000K = 0x09
-
-    @property
-    def default(self) -> int:
-        """Default CAN rate."""
-        return self.CAN_500K
+    default = CAN_500K
 
 
-class ChecksumMode(OptionEnum):
+class ChecksumMode(ExtendedIntEnum):
     """Checksum mode for configuration commands.
 
     Used in: set_config
@@ -686,13 +598,10 @@ class ChecksumMode(OptionEnum):
     XOR = 0x01  # XOR of all bytes
     CRC8 = 0x02  # CRC-8 algorithm
 
-    @property
-    def default(self) -> int:
-        """Default checksum mode."""
-        return self.FIXED
+    default = FIXED  # Class variable for default value
 
 
-class LoopMode(OptionEnum):
+class LoopMode(ExtendedIntEnum):
     """Loop mode for configuration commands.
 
     Used in: set_config, set_mode
@@ -700,14 +609,10 @@ class LoopMode(OptionEnum):
 
     OPEN = 0x01
     CLOSED = 0x02
-
-    @property
-    def default(self) -> int:
-        """Default loop mode."""
-        return self.CLOSED
+    default = CLOSED
 
 
-class ResponseMode(OptionEnum):
+class ResponseMode(ExtendedIntEnum):
     """Response mode for configuration commands.
 
     Used in: set_config
@@ -718,14 +623,10 @@ class ResponseMode(OptionEnum):
     REACHED = 0x02  # Return ADDR + FD + 9F + CHECKSUM after reaching target
     BOTH = 0x03  # Return ADDR + FD + 9F + CHECKSUM after both
     OTHER = 0x04  # Return other values
-
-    @property
-    def default(self) -> int:
-        """Default response mode."""
-        return self.RECEIVE
+    default = RECEIVE
 
 
-class StallProtect(OptionEnum):
+class StallProtect(ExtendedIntEnum):
     """Stall protection flag for configuration commands.
 
     Used in: set_config
@@ -733,11 +634,7 @@ class StallProtect(OptionEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default stall protection flag."""
-        return self.ENABLE
+    default = ENABLE
 
 
 class StallSpeed(RangedInt):
@@ -776,7 +673,7 @@ class OnTargetWindow(RangedInt):
     meta = MetaParam(minimum=0, maximum=100, default=1, digits=2)  # Unit: 0.1XDeg
 
 
-class EnablePin(OptionEnum):
+class EnablePin(ExtendedIntEnum):
     """Enable pin configuration for settings.
 
     Used in: set_config
@@ -784,14 +681,10 @@ class EnablePin(OptionEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default enable pin."""
-        return self.ENABLE
+    default = ENABLE
 
 
-class DefaultDir(OptionEnum):
+class DefaultDir(ExtendedIntEnum):
     """Default direction configuration for settings.
 
     Used in: set_config
@@ -799,14 +692,10 @@ class DefaultDir(OptionEnum):
 
     CW = 0x00
     CCW = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default default direction."""
-        return self.CW
+    default = CW
 
 
-class SpeedReduction(OptionEnum):
+class SpeedReduction(ExtendedIntEnum):
     """Speed reduction configuration for settings.
 
     Used in: set_reduction
@@ -814,14 +703,10 @@ class SpeedReduction(OptionEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
-
-    @property
-    def default(self) -> int:
-        """Default speed reduction."""
-        return self.DISABLE
+    default = DISABLE
 
 
-class CurrentUnit(OptionEnum):
+class CurrentUnit(ExtendedIntEnum):
     """Current unit in settings and output.
 
     Used in: set_config
@@ -829,14 +714,10 @@ class CurrentUnit(OptionEnum):
 
     mA = 1  # noqa: N815
     A = 1000
-
-    @property
-    def default(self) -> int:
-        """Default current unit."""
-        return self.mA
+    default = mA
 
 
-class VoltageUnit(OptionEnum):
+class VoltageUnit(ExtendedIntEnum):
     """Voltage unit in settings and output.
 
     Used in: set_config
@@ -844,14 +725,10 @@ class VoltageUnit(OptionEnum):
 
     mV = 1  # noqa: N815
     V = 1000
-
-    @property
-    def default(self) -> int:
-        """Default voltage unit."""
-        return self.mV
+    default = mV
 
 
-class InductanceUnit(OptionEnum):
+class InductanceUnit(ExtendedIntEnum):
     """Inductance unit in output.
 
     Used in: set_config
@@ -860,14 +737,10 @@ class InductanceUnit(OptionEnum):
     uH = 1  # noqa: N815
     mH = 1000  # noqa: N815
     H = 1000000
-
-    @property
-    def default(self) -> int:
-        """Default inductance unit."""
-        return self.uH
+    default = uH
 
 
-class ResistanceUnit(OptionEnum):
+class ResistanceUnit(ExtendedIntEnum):
     """Resistance unit in output.
 
     Used in: set_config
@@ -875,11 +748,7 @@ class ResistanceUnit(OptionEnum):
 
     mOhm = 1  # noqa: N815
     Ohm = 1000
-
-    @property
-    def default(self) -> int:
-        """Default resistance unit."""
-        return self.mOhm
+    default = mOhm
 
 
 class AngleUnit(Enum):
@@ -890,14 +759,10 @@ class AngleUnit(Enum):
 
     deg = 360
     rad = 2 * math.pi
-
-    @property
-    def default(self) -> int:
-        """Default angle unit."""
-        return self.deg
+    default = deg
 
 
-class TimeUnit(OptionEnum):
+class TimeUnit(ExtendedIntEnum):
     """Time unit in output.
 
     Used in: set_config
@@ -905,11 +770,7 @@ class TimeUnit(OptionEnum):
 
     ms = 1  # noqa: N815
     s = 1000
-
-    @property
-    def default(self) -> int:
-        """Default time unit."""
-        return self.ms
+    default = ms
 
 
 @dataclass

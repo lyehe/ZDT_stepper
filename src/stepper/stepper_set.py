@@ -65,7 +65,7 @@ class SetMicrostep(SetCommand):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_MICROSTEP,
                 self.store,
@@ -84,12 +84,12 @@ class SetID(SetCommand):
     """Set ID.
 
     :param store: Store flag
-    :param device_id: Device ID
+    :param address: Device ID
     :param confirm: Confirm flag, defaults to False
     """
 
     store: StoreFlag = StoreFlag.default
-    device_id: Address = Address.default
+    address: Address = Address.default
     confirm: bool = False
 
     @property
@@ -99,7 +99,7 @@ class SetID(SetCommand):
     @property
     def _command_body(self) -> bytes:
         if self.confirm:
-            return bytes([self.addr, self._code, Protocol.SET_ID, self.store, self.device_id])
+            return bytes([self.address, self._code, Protocol.SET_ID, self.store, self.address])
         else:
             logger.warning(
                 "The device will be set to a different device ID. Please confirm by setting the confirm to true."
@@ -124,7 +124,7 @@ class SetLoopMode(SetCommand):
 
     @property
     def _command_body(self) -> bytes:
-        return bytes([self.addr, self._code, Protocol.SET_LOOP_MODE, self.store, self.loop_mode])
+        return bytes([self.address, self._code, Protocol.SET_LOOP_MODE, self.store, self.loop_mode])
 
 
 @dataclass
@@ -152,7 +152,7 @@ class SetOpenLoopCurrent(SetCommand):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_OPEN_LOOP_CURRENT,
                 self.store,
@@ -189,7 +189,7 @@ class SetPID(SetCommand):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_PID,
                 self.store,
@@ -230,7 +230,7 @@ class SetStartSpeed(SetCommand):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_START_SPEED,
                 self.store,
@@ -266,7 +266,7 @@ class SetReduction(SetCommand):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_REDUCTION,
                 self.store,
@@ -298,7 +298,7 @@ class SetConfig(SetCommand):
     :param max_voltage: Maximum voltage
     :param baud_rate: Baud rate
     :param can_rate: CAN rate
-    :param device_id: Device ID
+    :param address: Device ID
     :param verify_mode: Verify mode
     :param response_mode: Response mode
     :param stall_protect: Stall protection
@@ -322,7 +322,7 @@ class SetConfig(SetCommand):
     max_voltage: MaxVoltage = MaxVoltage.default
     baud_rate: BaudRate = BaudRate.default
     can_rate: CanRate = CanRate.default
-    device_id: Address = Address.default  # Not implemented
+    address: Address = Address.default  # Not implemented
     checksum_mode: ChecksumMode = ChecksumMode.default
     response_mode: ResponseMode = ResponseMode.default
     stall_protect: StallProtect = StallProtect.default
@@ -339,7 +339,7 @@ class SetConfig(SetCommand):
     def _command_body(self) -> bytes:
         return bytes(
             [
-                self.addr,
+                self.address,
                 self._code,
                 Protocol.SET_CONFIG,
                 self.store,
@@ -356,7 +356,7 @@ class SetConfig(SetCommand):
                 *self.max_voltage.bytes,
                 self.baud_rate,
                 self.can_rate,
-                self.device_id,
+                self.address,
                 self.checksum_mode,
                 self.response_mode,
                 self.stall_protect,

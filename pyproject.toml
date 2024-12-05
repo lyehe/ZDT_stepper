@@ -14,7 +14,8 @@ dependencies = ["pyserial", "pyyaml", "tqdm"]
 dev = ["ruff", "pytest", "pre-commit", "twine"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/lazyimread"]
+packages = ["src/serial_utilities", "src/stepper"]
+
 
 [tool.pytest.ini_options]
 pythonpath = [".", "src"]
