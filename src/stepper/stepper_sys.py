@@ -20,12 +20,6 @@ class SystemCommand(WithNoParams, TakeNoSetting, ReturnSuccess):
 
     _command_lock: bool = True
 
-    @classmethod
-    def unlock(cls) -> None:
-        """Unlock the command."""
-        cls._command_lock = False
-        return cls
-
 
 class CalibrateEncoder(SystemCommand):
     """Calibrate encoder command configuration."""

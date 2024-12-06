@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from logging import getLogger
 from pathlib import Path
-from typing import NamedTuple, TypeAlias
+from typing import TypeAlias
 
 logger = getLogger(__name__)
 COMPort: TypeAlias = str | Path
@@ -108,11 +108,11 @@ class Protocol(ExtendedIntEnum):
     FACTORY_RESET = 0x5F
 
     # Read Commands
-    GET_CONFIG = 0x42
+    GET_CONFIG = 0x6C
     GET_CONFIG_RESPONSE = 0x21
     GET_CONFIG_LENGTH = 0x15
-    GET_SYS_STATUS = 0x43
-    GET_SYS_STATUS_RESPONSE = 0x1F
+    GET_SYS_STATUS = 0x7A
+    GET_SYS_STATUS_RESPONSE = 0x09
 
     # Configuration Commands
     SET_MICROSTEP = 0x8A
@@ -135,42 +135,109 @@ class StatusCode(ExtendedIntEnum):
     ERROR = 0xEE
 
 
-class MetaParam(NamedTuple):
-    """params for a variable class configurations."""
+class RangedInt(int):
+    """A configuration integer constrained to a specific range."""
 
     minimum: int
     maximum: int
     default: int
     digits: int
 
-
-class RangedInt(int):
-    """A configuration integer constrained to a specific range."""
-
-    meta: MetaParam
-
     def __new__(cls, value: int | None = None) -> "RangedInt":
         """Create a new instance of RangedInt that is within the range."""
         if value is None:
-            value = cls.meta.default
-        if not cls.meta.minimum <= value <= cls.meta.maximum:
-            raise ValueError(f"Value must be between {cls.meta.minimum} and {cls.meta.maximum}")
+            value = cls.default
+        if not cls.minimum <= value <= cls.maximum:
+            raise ValueError(f"Value must be between {cls.minimum} and {cls.maximum}")
         return super().__new__(cls, value)
 
     @property
     def bytes(self) -> bytes:
         """Bytes representation."""
-        return self.to_bytes(self.meta.digits, "big")
-
-    @property
-    def default(self) -> int:
-        """Default value."""
-        return self.meta.default
+        return self.to_bytes(self.digits, "big")
 
     @property
     def digits(self) -> int:
         """Number of digits."""
-        return self.meta.digits
+        return self.digits
+
+
+class SpeedUnit(ExtendedIntEnum):
+    """Speed unit in settings and output.
+
+    Used in: set_config
+    """
+
+    RPM = 1
+    RPS = 60
+    default = RPM
+
+
+class CurrentUnit(ExtendedIntEnum):
+    """Current unit in settings and output.
+
+    Used in: set_config
+    """
+
+    mA = 1  # noqa: N815
+    A = 1000
+    default = mA
+
+
+class VoltageUnit(ExtendedIntEnum):
+    """Voltage unit in settings and output.
+
+    Used in: set_config
+    """
+
+    mV = 1  # noqa: N815
+    V = 1000
+    default = mV
+
+
+class InductanceUnit(ExtendedIntEnum):
+    """Inductance unit in output.
+
+    Used in: set_config
+    """
+
+    uH = 1  # noqa: N815
+    mH = 1000  # noqa: N815
+    H = 1000000
+    default = uH
+
+
+class ResistanceUnit(ExtendedIntEnum):
+    """Resistance unit in output.
+
+    Used in: set_config
+    """
+
+    mOhm = 1  # noqa: N815
+    Ohm = 1000
+    default = mOhm
+
+
+class AngleUnit(Enum):
+    """Angle unit in output.
+
+    Used in: set_config
+    """
+
+    deg = 65536 / 360
+    rad = 65536 / 2 / math.pi
+    default = deg
+
+
+class TimeUnit(ExtendedIntEnum):
+    """Time unit in output.
+
+    Used in: set_config
+    """
+
+    ms = 1  # noqa: N815
+    s = 1000
+    default = ms
 
 
 class Address(RangedInt):
@@ -179,19 +246,13 @@ class Address(RangedInt):
     Used in all commands.
     """
 
-    meta = MetaParam(minimum=0, maximum=255, default=1, digits=1)
+    minimum = 0
+    maximum = 255
+    default = 1
+    digits = 1
+    broadcast = 0
 
     # 0-255, 1 is default address, 0 is broadcast
-
-    @property
-    def default(self) -> int:
-        """Default address."""
-        return 1
-
-    @property
-    def broadcast(self) -> int:
-        """Broadcast address."""
-        return 0
 
 
 class SyncFlag(ExtendedIntEnum):
@@ -244,7 +305,10 @@ class Speed(RangedInt):
     Used in: jog, move, save_speed
     """
 
-    meta = MetaParam(minimum=0, maximum=3000, default=0, digits=2)  # Unit RPM
+    minimum = 0
+    maximum = 3000
+    default = 0
+    digits = 2  # Unit RPM
 
     @property
     def stop(self) -> int:
@@ -258,7 +322,10 @@ class Acceleration(RangedInt):
     Used in: jog, move, save_speed
     """
 
-    meta = MetaParam(minimum=0, maximum=255, default=0, digits=1)
+    minimum = 0
+    maximum = 255
+    default = 0
+    digits = 1
     # t2 - t1 = (256 - acc) * 50(us)，Vt2 = Vt1 + 1(RPM)
 
 
@@ -268,7 +335,10 @@ class PulseCount(RangedInt):
     Used in: move
     """
 
-    meta = MetaParam(minimum=0, maximum=256**4 - 1, default=0, digits=4)
+    minimum = 0
+    maximum = 256**4 - 1
+    default = 0
+    digits = 4
 
 
 class AbsoluteFlag(ExtendedIntEnum):
@@ -313,7 +383,10 @@ class HomingSpeed(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(minimum=0, maximum=300, default=30, digits=2)  # Unit: RPM
+    minimum = 0
+    maximum = 300
+    default = 30
+    digits = 2  # Unit: RPM
 
 
 class HomingTimeout(RangedInt):
@@ -322,7 +395,11 @@ class HomingTimeout(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(minimum=0, maximum=100000, default=10000, digits=4)  # Unit: ms
+    minimum = 0
+    maximum = 100000
+    default = 10000
+    digits = 4
+    unit = TimeUnit
 
 
 class CollisionDetectionSpeed(RangedInt):
@@ -331,7 +408,10 @@ class CollisionDetectionSpeed(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(minimum=0, maximum=500, default=300, digits=2)  # Unit: RPM
+    minimum = 0
+    maximum = 500
+    default = 300
+    digits = 2
 
 
 class CollisionDetectionCurrent(RangedInt):
@@ -340,7 +420,11 @@ class CollisionDetectionCurrent(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(minimum=0, maximum=3000, default=800, digits=2)  # Unit: mA
+    minimum = 0
+    maximum = 3000
+    default = 800
+    digits = 2
+    unit = CurrentUnit
 
 
 class CollisionDetectionTime(RangedInt):
@@ -349,7 +433,11 @@ class CollisionDetectionTime(RangedInt):
     Used in: set_home_param
     """
 
-    meta = MetaParam(minimum=0, maximum=500, default=60, digits=2)  # Unit: ms
+    minimum = 0
+    maximum = 500
+    default = 60
+    digits = 2
+    unit = TimeUnit
 
 
 class AutoHoming(ExtendedIntEnum):
@@ -369,22 +457,13 @@ class Kpid(RangedInt):
     Used in: set_pid
     """
 
-    meta = MetaParam(minimum=0, maximum=256**4 - 1, default=0, digits=4)
-
-    @property
-    def default_kp(self) -> int:
-        """Default Kp."""
-        return 62000
-
-    @property
-    def default_ki(self) -> int:
-        """Default Ki."""
-        return 100
-
-    @property
-    def default_kd(self) -> int:
-        """Default Kd."""
-        return 62000
+    minimum = 0
+    maximum = 256**4 - 1
+    default = 0
+    digits = 4
+    default_kp = 62000
+    default_ki = 100
+    default_kd = 62000
 
 
 class MotorType(ExtendedIntEnum):
@@ -447,7 +526,10 @@ class Microstep(RangedInt):
     Used in: set_config, set_microstep
     """
 
-    meta = MetaParam(minimum=0, maximum=255, default=16, digits=1)  # 0x00 is 256 microsteps
+    minimum = 0
+    maximum = 255
+    default = 16
+    digits = 1  # 0x00 is 256 microsteps
 
 
 class MicrostepInterp(ExtendedIntEnum):
@@ -478,7 +560,11 @@ class OpenLoopCurrent(RangedInt):
     Used in: set_config, set_current
     """
 
-    meta = MetaParam(minimum=0, maximum=2000, default=800, digits=2)  # Unit: mA
+    minimum = 0
+    maximum = 2000
+    default = 800
+    digits = 2
+    unit = CurrentUnit
 
 
 class ClosedLoopCurrent(RangedInt):
@@ -487,7 +573,11 @@ class ClosedLoopCurrent(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(minimum=0, maximum=4000, default=2000, digits=2)  # Unit: mA
+    minimum = 0
+    maximum = 4000
+    default = 2000
+    digits = 2
+    unit = CurrentUnit
 
 
 class MaxVoltage(RangedInt):
@@ -496,7 +586,11 @@ class MaxVoltage(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(minimum=0, maximum=5000, default=4000, digits=2)  # Unit: mV
+    minimum = 0
+    maximum = 5000
+    default = 4000
+    digits = 2
+    unit = VoltageUnit
 
 
 class BaudRate(ExtendedIntEnum):
@@ -588,7 +682,11 @@ class StallProtect(ExtendedIntEnum):
 class AnglePosition(RangedInt):
     """Angular position of the device."""
 
-    meta = MetaParam(minimum=0, maximum=65535, default=0, digits=4)
+    minimum = 0
+    maximum = 65535
+    default = 0
+    digits = 4
+    unit = AngleUnit
 
 
 class StallSpeed(RangedInt):
@@ -597,7 +695,10 @@ class StallSpeed(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(minimum=0, maximum=500, default=28, digits=2)  # Unit: RPM
+    minimum = 0
+    maximum = 500
+    default = 28
+    digits = 2  # Unit: RPM
 
 
 class StallCurrent(RangedInt):
@@ -606,7 +707,11 @@ class StallCurrent(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(minimum=0, maximum=3000, default=2400, digits=2)  # Unit: mA
+    minimum = 0
+    maximum = 3000
+    default = 2400
+    digits = 2
+    unit = CurrentUnit
 
 
 class StallTime(RangedInt):
@@ -615,7 +720,11 @@ class StallTime(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(minimum=0, maximum=5000, default=4000, digits=2)  # Unit: ms
+    minimum = 0
+    maximum = 5000
+    default = 4000
+    digits = 2
+    unit = TimeUnit
 
 
 class OnTargetWindow(RangedInt):
@@ -624,7 +733,10 @@ class OnTargetWindow(RangedInt):
     Used in: set_config
     """
 
-    meta = MetaParam(minimum=0, maximum=100, default=1, digits=2)  # Unit: 0.1XDeg
+    minimum = 0
+    maximum = 100
+    default = 1
+    digits = 2  # Unit: 0.1xDeg
 
 
 class EnablePin(ExtendedIntEnum):
@@ -658,70 +770,3 @@ class SpeedReduction(ExtendedIntEnum):
     DISABLE = 0x00
     ENABLE = 0x01
     default = DISABLE
-
-
-class CurrentUnit(ExtendedIntEnum):
-    """Current unit in settings and output.
-
-    Used in: set_config
-    """
-
-    mA = 1  # noqa: N815
-    A = 1000
-    default = mA
-
-
-class VoltageUnit(ExtendedIntEnum):
-    """Voltage unit in settings and output.
-
-    Used in: set_config
-    """
-
-    mV = 1  # noqa: N815
-    V = 1000
-    default = mV
-
-
-class InductanceUnit(ExtendedIntEnum):
-    """Inductance unit in output.
-
-    Used in: set_config
-    """
-
-    uH = 1  # noqa: N815
-    mH = 1000  # noqa: N815
-    H = 1000000
-    default = uH
-
-
-class ResistanceUnit(ExtendedIntEnum):
-    """Resistance unit in output.
-
-    Used in: set_config
-    """
-
-    mOhm = 1  # noqa: N815
-    Ohm = 1000
-    default = mOhm
-
-
-class AngleUnit(Enum):
-    """Angle unit in output.
-
-    Used in: set_config
-    """
-
-    deg = 65536 / 360
-    rad = 65536 / 2 / math.pi
-    default = deg
-
-
-class TimeUnit(ExtendedIntEnum):
-    """Time unit in output.
-
-    Used in: set_config
-    """
-
-    ms = 1  # noqa: N815
-    s = 1000
-    default = ms

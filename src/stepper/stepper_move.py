@@ -1,7 +1,5 @@
 """Move commands for stepper motor."""
 
-from logging import getLogger
-
 from .stepper_command import (
     ReturnSuccess,
     TakeNoSetting,
@@ -17,10 +15,8 @@ from .stepper_constants import (
 )
 from .stepper_parameters import JogParams, PositionParams
 
-logger = getLogger(__name__)
 
-
-class MoveCommand(ReturnSuccess, TakeSyncSetting):
+class MoveCommand(TakeSyncSetting, ReturnSuccess):
     """Move command configuration. All move commands inherit from this class."""
 
 

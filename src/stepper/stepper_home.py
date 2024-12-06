@@ -1,7 +1,5 @@
 """Home commands for stepper motor."""
 
-from logging import getLogger
-
 from .stepper_command import (
     ReturnData,
     ReturnSuccess,
@@ -11,23 +9,13 @@ from .stepper_command import (
     WithClassParams,
     WithEnumParams,
     WithNoParams,
-    to_int,
 )
 from .stepper_constants import (
-    AutoHoming,
     Code,
-    CollisionDetectionCurrent,
-    CollisionDetectionSpeed,
-    CollisionDetectionTime,
-    HomingDirection,
     HomingMode,
-    HomingSpeed,
-    HomingTimeout,
     Protocol,
 )
 from .stepper_parameters import HomingParams, HomingStatus
-
-logger = getLogger(__name__)
 
 
 class SetHome(WithNoParams, TakeStoreSetting, ReturnSuccess):
@@ -57,19 +45,6 @@ class RetrieveHomeParam(WithNoParams, TakeNoSetting, ReturnData):
     _code: Code = Code.GET_HOME_PARAM
     _response_length: int = 18
     ReturnType = HomingParams
-
-    def _unpack_data(self, data: bytes) -> HomingParams:
-        """Return home parameters as a dictionary."""
-        return HomingParams(
-            homing_mode=HomingMode(data[0]),
-            homing_direction=HomingDirection(data[1]),
-            homing_speed=HomingSpeed(to_int(data[2:4])),
-            homing_timeout=HomingTimeout(to_int(data[4:8])),
-            collision_detection_speed=CollisionDetectionSpeed(to_int(data[8:10])),
-            collision_detection_current=CollisionDetectionCurrent(to_int(data[10:12])),
-            collision_detection_time=CollisionDetectionTime(to_int(data[12:14])),
-            auto_home=AutoHoming(data[14]),
-        )
 
 
 class SetHomeParam(WithClassParams, TakeStoreSetting, ReturnSuccess):

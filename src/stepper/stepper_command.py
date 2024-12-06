@@ -1,7 +1,6 @@
 """Command classes to construct commands and handle responses."""
 
 from abc import ABC, abstractmethod
-from dataclasses import asdict
 from logging import getLogger
 from time import sleep, time
 from typing import TypeAlias, TypeVar
@@ -19,7 +18,7 @@ from .stepper_constants import (
     SystemConstants,
 )
 from .stepper_exceptions import CommandError
-from .stepper_parameters import DeviceParams, StepperInput
+from .stepper_parameters import DeviceParams, StepperInput, StepperOutput
 
 logger = getLogger(__name__)
 
@@ -69,17 +68,6 @@ def _add_checksum(command_bytes: bytes, checksum_mode: ChecksumMode) -> bytes:
     return command_bytes + _calculate_checksum(command_bytes, checksum_mode)
 
 
-def to_int(input: bytes) -> int:
-    """Convert bytes to int."""
-    return int.from_bytes(input, "big")
-
-
-def to_signed_int(input: bytes) -> int:
-    """Convert long bytes to signed int."""
-    sign = -1 if input[0] == 1 else 1
-    return sign * to_int(input[1:])
-
-
 class Command(ABC):
     """Command configuration class."""
 
@@ -120,6 +108,7 @@ class Command(ABC):
         self._data: DataType = None
         self.serial_connection = device.serial_connection
         self._connection_flag = self.serial_connection.is_open
+        logger.debug(f"Connection flag: {self._connection_flag}")
 
         if not self._connection_flag:
             logger.debug(f"Opening {self.serial_connection.name}")
@@ -269,6 +258,11 @@ class Command(ABC):
                 tries += 1
         return status if tries < SystemConstants.MAX_RETRIES else StatusCode.MAX_RETRIES_EXCEEDED
 
+    @classmethod
+    def unlock(cls):
+        """Unlock the command."""
+        cls._command_lock = False
+
     def __repr__(self) -> str:
         """Representation of the command."""
         return f"{self.__class__.__name__}({self.address}, {self.params}, {self.setting})"
@@ -330,20 +324,22 @@ class ReturnSuccess(Command):
     _response_length: int = 4
 
     def _process_data(self, data: bytes) -> StatusCode:
-        return StatusCode(to_int(data))
+        return StatusCode(int.from_bytes(data, "big"))
 
 
 class ReturnData(Command):
     """Command with data response."""
 
     _response_length: int
-    ReturnType = TypeVar("ReturnType")
+    ReturnType = TypeVar("ReturnType", bound=StepperOutput)
 
     def _unpack_data(self, data: bytes) -> ReturnType:
         """Unpack data from response."""
-        return self.ReturnType(to_int(data))
+        logger.debug(f"Return type: {self.ReturnType}")
+        return self.ReturnType.from_bytes(data)
 
     def _process_data(self, data: bytes) -> StatusCode:
         self._raw_data = self._unpack_data(data)
-        self._data = asdict(self._raw_data)
+        logger.debug(f"Raw data: {self._raw_data}")
+        self._data = self._raw_data.__dict__
         return StatusCode.SUCCESS

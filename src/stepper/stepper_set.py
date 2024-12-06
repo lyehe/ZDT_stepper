@@ -1,372 +1,82 @@
-from abc import abstractmethod
-from dataclasses import dataclass
-from logging import getLogger
+"""Set commands for stepper motor."""
 
-from .stepper_command import BroadcastCommand, Command
+from src.stepper.stepper_parameters import StartSpeedParams
+
+from .stepper_command import (
+    Command,
+    ReturnSuccess,
+    TakeStoreSetting,
+    WithClassParams,
+    WithEnumParams,
+)
 from .stepper_constants import (
-    Acceleration,
     Address,
-    BaudRate,
-    CanRate,
-    ChecksumMode,
-    ClosedLoopCurrent,
     Code,
-    CommunicationMode,
-    ControlMode,
-    CurrentUnit,
-    DefaultDir,
-    Direction,
-    EnableLevel,
-    EnablePin,
     Kpid,
     LoopMode,
-    MaxVoltage,
     Microstep,
-    MicrostepInterp,
-    MotorType,
-    OnTargetWindow,
     OpenLoopCurrent,
     Protocol,
-    ResponseMode,
-    ScreenOff,
-    Speed,
     SpeedReduction,
-    StallProtect,
-    StallSpeed,
-    StallTime,
-    StoreFlag,
 )
-from .stepper_exceptions import CommandError
-
-logger = getLogger(__name__)
 
 
-@abstractmethod
-class SetCommand(Command):
+class SetCommand(TakeStoreSetting, ReturnSuccess, Command):
     """Set command configuration."""
 
 
-@dataclass
-class SetMicrostep(SetCommand):
-    """Set microstep command configuration.
+class SetMicrostep(WithClassParams, SetCommand):
+    """Set microstep command configuration."""
 
-    :param store: Store flag
-    :param microstep_value: Microstep value (0-255, 0 is 256 microsteps)
-    """
-
-    store: StoreFlag = StoreFlag.default
-    microstep_value: Microstep = Microstep.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_MICROSTEP
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_MICROSTEP,
-                self.store,
-                self.microstep_value,
-            ]
-        )
+    _code = Code.SET_MICROSTEP
+    _protocol = Protocol.SET_MICROSTEP
+    ParamsType = Microstep
 
 
-@dataclass
-class SetMicrostepAll(SetMicrostep, BroadcastCommand):
-    """Set microstep for all motors."""
+class SetID(WithClassParams, SetCommand):
+    """Set ID command configuration."""
+
+    _code = Code.SET_ID
+    _protocol = Protocol.SET_ID
+    _command_lock: bool = True
+    ParamsType = Address
 
 
-@dataclass
-class SetID(SetCommand):
-    """Set ID.
+class SetLoopMode(WithEnumParams, SetCommand):
+    """Set loop mode command configuration."""
 
-    :param store: Store flag
-    :param address: Device ID
-    :param confirm: Confirm flag, defaults to False
-    """
-
-    store: StoreFlag = StoreFlag.default
-    address: Address = Address.default
-    confirm: bool = False
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_ID
-
-    @property
-    def _command_body(self) -> bytes:
-        if self.confirm:
-            return bytes([self.address, self._code, Protocol.SET_ID, self.store, self.address])
-        else:
-            logger.warning(
-                "The device will be set to a different device ID. Please confirm by setting the confirm to true."
-            )
-            raise CommandError("Confirm flag must be set to True to confirm ID change")
+    _code = Code.SET_LOOP_MODE
+    _protocol = Protocol.SET_LOOP_MODE
+    ParamsType = LoopMode
 
 
-@dataclass
-class SetLoopMode(SetCommand):
-    """Set loop mode command configuration.
+class SetOpenLoopCurrent(WithClassParams, SetCommand):
+    """Set open loop current command configuration."""
 
-    :param store: Store flag
-    :param control_mode: Control mode
-    """
-
-    store: StoreFlag = StoreFlag.default
-    loop_mode: LoopMode = LoopMode.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_LOOP_MODE
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes([self.address, self._code, Protocol.SET_LOOP_MODE, self.store, self.loop_mode])
+    _code = Code.SET_OPEN_LOOP_CURRENT
+    _protocol = Protocol.SET_OPEN_LOOP_CURRENT
+    ParamsType = OpenLoopCurrent
 
 
-@dataclass
-class SetLoopModeAll(SetLoopMode, BroadcastCommand):
-    """Set loop mode for all motors."""
+class SetPID(WithClassParams, SetCommand):
+    """Set PID parameters command configuration."""
+
+    _code = Code.SET_PID
+    _protocol = Protocol.SET_PID
+    ParamsType = Kpid
 
 
-@dataclass
-class SetOpenLoopCurrent(SetCommand):
-    """Set open loop current.
-    
-    :param store: Store flag
-    :param open_loop_current: Open loop current
-    """
+class SetStartSpeed(WithClassParams, SetCommand):
+    """Set start speed command configuration."""
 
-    store: StoreFlag
-    open_loop_current: OpenLoopCurrent
-    current_unit: CurrentUnit = CurrentUnit.MA
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_OPEN_LOOP_CURRENT
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_OPEN_LOOP_CURRENT,
-                self.store,
-                *self.open_loop_current.bytes,
-            ]
-        )
+    _code = Code.SET_START_SPEED
+    _protocol = Protocol.SET_START_SPEED
+    ParamsType = StartSpeedParams
 
 
-@dataclass
-class SetOpenLoopCurrentAll(SetOpenLoopCurrent, BroadcastCommand):
-    """Set open loop current for all motors command configuration"""
+class SetReduction(WithClassParams, SetCommand):
+    """Set speed reduction command configuration."""
 
-
-@dataclass
-class SetPID(SetCommand):
-    """Set PID parameters command configuration
-
-    :param store: Store flag
-    :param kp: Proportional gain
-    :param ki: Integral gain
-    :param kd: Derivative gain
-    """
-
-    store: StoreFlag = StoreFlag.default
-    kp: Kpid = Kpid.default_kp
-    ki: Kpid = Kpid.default_ki
-    kd: Kpid = Kpid.default_kd
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_PID
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_PID,
-                self.store,
-                *self.kp.bytes,
-                *self.ki.bytes,
-                *self.kd.bytes,
-            ]
-        )
-
-
-@dataclass
-class SetPIDAll(SetPID, BroadcastCommand):
-    """Set PID parameters for all motors command configuration."""
-
-
-@dataclass
-class SetStartSpeed(SetCommand):
-    """Set start speed command configuration.
-
-    :param store: Store flag
-    :param direction: Direction
-    :param speed: Speed
-    :param acceleration: Acceleration
-    :param en_control: Enable control
-    """
-
-    store: StoreFlag = StoreFlag.default
-    direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
-    en_control: EnablePin = EnablePin.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_START_SPEED
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_START_SPEED,
-                self.store,
-                self.direction,
-                *self.speed.bytes,
-                *self.acceleration.bytes,
-                self.en_control,
-            ]
-        )
-
-
-@dataclass
-class SetStartSpeedAll(SetStartSpeed, BroadcastCommand):
-    """Set start speed for all motors command configuration."""
-
-
-@dataclass
-class SetReduction(SetCommand):
-    """Set speed reduction command configuration.
-
-    :param store: Store flag
-    :param speed_reduction: Speed reduction
-    """
-
-    store: StoreFlag = StoreFlag.default
-    speed_reduction: SpeedReduction = SpeedReduction.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_REDUCTION
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_REDUCTION,
-                self.store,
-                self.speed_reduction,
-            ]
-        )
-
-
-@dataclass
-class SetReductionAll(SetReduction, BroadcastCommand):
-    """Set speed reduction for all motors command configuration."""
-
-
-@dataclass
-class SetConfig(SetCommand):
-    """Set configuration command configuration.
-
-    :param store: Store flag
-    :param motor_type: Motor type
-    :param control_mode: Control mode
-    :param comm_mode: Communication mode
-    :param en_level: Enable level
-    :param dir_level: Direction level
-    :param microsteps: Microsteps
-    :param microstep_interp: Microstep interpolation
-    :param screen_off: Screen off
-    :param open_loop_current: Open loop current
-    :param closed_loop_current: Closed loop current
-    :param max_voltage: Maximum voltage
-    :param baud_rate: Baud rate
-    :param can_rate: CAN rate
-    :param address: Device ID
-    :param verify_mode: Verify mode
-    :param response_mode: Response mode
-    :param stall_protect: Stall protection
-    :param stall_speed: Stall speed
-    :param stall_current: Stall current
-    :param stall_time: Stall time
-    :param pos_window: Position window
-    """
-
-    store: StoreFlag = StoreFlag.default
-    motor_type: MotorType = MotorType.default
-    control_mode: ControlMode = ControlMode.default
-    communication_mode: CommunicationMode = CommunicationMode.default
-    enable_level: EnableLevel = EnableLevel.default
-    default_direction: DefaultDir = DefaultDir.default
-    microsteps: Microstep = Microstep.default
-    microstep_interp: MicrostepInterp = MicrostepInterp.default
-    screen_off: ScreenOff = ScreenOff.default
-    open_loop_current: OpenLoopCurrent = OpenLoopCurrent.default
-    closed_loop_current: ClosedLoopCurrent = ClosedLoopCurrent.default
-    max_voltage: MaxVoltage = MaxVoltage.default
-    baud_rate: BaudRate = BaudRate.default
-    can_rate: CanRate = CanRate.default
-    address: Address = Address.default  # Not implemented
-    checksum_mode: ChecksumMode = ChecksumMode.default
-    response_mode: ResponseMode = ResponseMode.default
-    stall_protect: StallProtect = StallProtect.default
-    stall_speed: StallSpeed = StallSpeed.default
-    stall_current: ClosedLoopCurrent = ClosedLoopCurrent.default
-    stall_time: StallTime = StallTime.default
-    on_target_window: OnTargetWindow = OnTargetWindow.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_CONFIG
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_CONFIG,
-                self.store,
-                self.motor_type,
-                self.control_mode,
-                self.communication_mode,
-                self.enable_level,
-                self.default_direction,
-                self.microsteps,
-                self.microstep_interp,
-                self.screen_off,
-                *self.open_loop_current.bytes,
-                *self.closed_loop_current.bytes,
-                *self.max_voltage.bytes,
-                self.baud_rate,
-                self.can_rate,
-                self.address,
-                self.checksum_mode,
-                self.response_mode,
-                self.stall_protect,
-                *self.stall_speed.bytes,
-                *self.stall_current.bytes,
-                *self.stall_time.bytes,
-                *self.on_target_window.bytes,
-            ]
-        )
-
-
-class SetConfigAll(SetConfig, BroadcastCommand):
-    """Set configuration for all motors command configuration."""
+    _code = Code.SET_REDUCTION
+    _protocol = Protocol.SET_REDUCTION
+    ParamsType = SpeedReduction
