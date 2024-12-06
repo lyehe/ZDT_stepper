@@ -1,5 +1,5 @@
-### Command List
-
+## Command List
+### Move Commands
 enable
 Format: [6 bytes] Addr + 0xF3 + 0xAB + Enable_Status + Sync + Checksum
 Return: [4 bytes] Addr + 0xF3 + Status + Checksum
@@ -35,6 +35,8 @@ Errors:
     - Condition_Err: [4 bytes] Addr + 0xFF + 0xE2 + Checksum
     - Error: [4 bytes] Addr + 0x00 + 0xEE + Checksum
 
+
+### Home Commands
 set_home
 Format: [5 bytes] Addr + 0x93 + 0x88 + Store + Checksum
 Return: [4 bytes] Addr + 0x93 + Status + Checksum
@@ -73,6 +75,9 @@ Return: [4 bytes] Addr + 0x3B + Homing_Status + Checksum
 Errors:
     - Error: [4 bytes] Addr + 0x00 + 0xEE + Checksum
 
+
+
+### System Commands
 cal_encoder
 Format: [4 bytes] Addr + 0x06 + 0x45 + Checksum
 Return: [4 bytes] Addr + 0x06 + Status + Checksum
@@ -99,6 +104,8 @@ Return: [4 bytes] Addr + 0x0F + Status + Checksum
 Errors:
     - Error: [4 bytes] Addr + 0x00 + 0xEE + Checksum
 
+
+### Get Commands
 get_version
 Format: [3 bytes] Addr + 0x1F + Checksum
 Return: [5 bytes] Addr + 0x1F + Firmware_Version + Hardware_Version + Checksum

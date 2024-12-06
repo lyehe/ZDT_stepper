@@ -1,13 +1,17 @@
 """Get commands for stepper motor."""
 
-from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from logging import getLogger
-from typing import TypeAlias
 
-from stepper_command import Command, _int, _signed_int
-from stepper_constants import (
+from src.stepper.stepper_command import (
+    ReturnData,
+    TakeNoSetting,
+    WithNoParams,
+    to_int,
+)
+from src.stepper.stepper_constants import (
     Address,
+    AnglePosition,
     AngleUnit,
     BaudRate,
     CanRate,
@@ -19,12 +23,11 @@ from stepper_constants import (
     Direction,
     EnableLevel,
     HomingStatus,
-    InductanceUnit,
+    Kpid,
     Microstep,
     MicrostepInterp,
     MotorType,
     Protocol,
-    ResistanceUnit,
     ResponseMode,
     ScreenOff,
     StallProtect,
@@ -32,371 +35,129 @@ from stepper_constants import (
     TimeUnit,
     VoltageUnit,
 )
+from src.stepper.stepper_parameters import (
+    CurrentParams,
+    EncoderParams,
+    MotorRHParams,
+    PIDParams,
+    VersionParams,
+    VoltageParams,
+)
 
 logger = getLogger(__name__)
-RawValue: TypeAlias = int | tuple[int, ...]
-Value: TypeAlias = float | tuple[float | bool, ...]
+
+
+class GetCommand(WithNoParams, TakeNoSetting):
+    """Get command configuration."""
 
 
 @dataclass
-class GetCommand(Command, ABC):
-    """Get command abstract base class."""
-
-    @property
-    @abstractmethod
-    def value(self) -> Value:
-        """Value of the command."""
-        ...
-
-    @property
-    @abstractmethod
-    def raw_value(self) -> RawValue:
-        """Raw value of the command."""
-        ...
-
-
-@dataclass
-class AnglePosition(GetCommand, ABC):
-    """Angle position command configuration."""
-
-    angle_unit: AngleUnit = AngleUnit.default
-
-    @property
-    def angle(self) -> Value:
-        """Angle value."""
-        if self.angle_unit == AngleUnit.deg:
-            return self.raw_value / 65536 * self.angle_unit.value
-        else:
-            return self.raw_value / 65536 * self.angle_unit.value
-
-    @property
-    def angle_remainder(self) -> float:
-        """Angle remainder."""
-        if self.angle_unit == AngleUnit.deg:
-            return self.raw_value % 65536 / 65536 * self.angle_unit.value
-        else:
-            return self.raw_value % 65536 / 65536 * self.angle_unit.value
-
-    @property
-    def turns(self) -> int:
-        """Angle turns."""
-        return self.raw_value // 65536
-
-
-@dataclass
-class GetVersion(GetCommand):
+class GetVersion(GetCommand, ReturnData):
     """Get version of the device."""
 
-    @property
-    def _code(self) -> Code:
-        """Code of the command."""
-        return Code.GET_VERSION
+    _code = Code.GET_VERSION
+    _response_length = 5
+    ReturnType = VersionParams
 
-    @property
-    def _command_body(self) -> bytes:
-        """Command bytes."""
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "firmware_version": response[2],
-            "hardware_version": response[3],
-            "checksum": response[4],
-        }
-
-    @property
-    def raw_value(self) -> tuple[int, int]:
-        """Raw value of the command."""
-        return self.response[2], self.response[3]
-
-    @property
-    def firmware_version(self) -> str:
-        """Firmware version."""
-        return f"FV{self.raw_value[0]}"
-
-    @property
-    def hardware_version(self) -> str:
-        """Hardware version."""
-        return f"HV{self.raw_value[1]}"
-
-    @property
-    def value(self) -> tuple[str, str]:
-        """Value of the command."""
-        return self.firmware_version, self.hardware_version
-
-    @property
-    def parameter_dict(self) -> dict[str, str]:
-        """Parameter dictionary."""
-        return {
-            "firmware_version": self.firmware_version,
-            "hardware_version": self.hardware_version,
-        }
-
-
-@dataclass
-class GetMotorRH(GetCommand):
-    """Get motor resistance and inductance."""
-
-    resistance_unit: ResistanceUnit = ResistanceUnit.default
-    inductance_unit: InductanceUnit = InductanceUnit.default
-
-    @property
-    def _code(self) -> Code:
-        """Code of the command."""
-        return Code.GET_MOTOR_R_H
-
-    @property
-    def _command_body(self) -> bytes:
-        """Command bytes."""
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "phase_resistance": _int(response[2:4]),  # mOhm
-            "phase_inductance": _int(response[4:6]),  # uH
-            "checksum": response[6],
-        }
-
-    @property
-    def raw_value(self) -> tuple[int, int]:
-        """Raw value of the command."""
-        return _int(self.response[2:4]), _int(self.response[4:6])
-
-    @property
-    def phase_resistance(self) -> float:
-        """Phase resistance."""
-        return _int(self.response[2:4]) / self.resistance_unit.value
-
-    @property
-    def phase_inductance(self) -> float:
-        """Phase inductance."""
-        return _int(self.response[4:6]) / self.inductance_unit.value
-
-    @property
-    def value(self) -> tuple[float, float]:
-        """Value of the command."""
-        return self.phase_resistance, self.phase_inductance
-
-    @property
-    def parameter_dict(self) -> dict[str, float]:
-        """Parameter dictionary."""
-        return {
-            f"phase_resistance ({self.resistance_unit.name})": self.phase_resistance,
-            f"phase_inductance ({self.inductance_unit.name})": self.phase_inductance,
-        }
-
-
-@dataclass
-class GetPID(GetCommand):
-    """Get PID parameters command configuration."""
-
-    @property
-    def _code(self) -> Code:
-        """Code of the command."""
-        return Code.GET_PID
-
-    @property
-    def _command_body(self) -> bytes:
-        """Command bytes."""
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "kp": _int(response[2:6]),
-            "ki": _int(response[6:10]),
-            "kd": _int(response[10:14]),
-            "checksum": response[14],
-        }
-
-    @property
-    def raw_value(self) -> tuple[int, int, int]:
-        """Raw value of the command."""
-        return (
-            _int(self.response[2:6]),
-            _int(self.response[6:10]),
-            _int(self.response[10:14]),
+    def _unpack_data(self, data: bytes) -> VersionParams:
+        """Return home parameters as a dictionary."""
+        return VersionParams(
+            firmware_version=data[0],
+            hardware_version=data[1],
         )
 
-    @property
-    def kp(self) -> float:
-        """Proportional gain."""
-        return _int(self.response[2:6])
 
-    @property
-    def ki(self) -> float:
-        """Integral gain."""
-        return _int(self.response[6:10])
+@dataclass
+class GetMotorRH(GetCommand, ReturnData):
+    """Get motor resistance and inductance."""
 
-    @property
-    def kd(self) -> float:
-        """Derivative gain."""
-        return _int(self.response[10:14])
+    _code = Code.GET_MOTOR_R_H
+    _response_length = 7
+    ReturnType = MotorRHParams
 
-    @property
-    def value(self) -> tuple[float, float, float]:
-        """Value of the command."""
-        return self.kp, self.ki, self.kd
-
-    @property
-    def parameter_dict(self) -> dict[str, float]:
-        """Parameter dictionary."""
-        return {
-            "kp": self.kp,
-            "ki": self.ki,
-            "kd": self.kd,
-        }
+    def _unpack_data(self, data: bytes) -> MotorRHParams:
+        """Return motor resistance and inductance as a dictionary."""
+        return MotorRHParams(
+            phase_resistance=to_int(data[0:2]),
+            phase_inductance=to_int(data[2:4]),
+        )
 
 
 @dataclass
-class GetVoltage(GetCommand):
+class GetPID(GetCommand, ReturnData):
+    """Get PID parameters command configuration."""
+
+    _code = Code.GET_PID
+    _response_length = 15
+    ReturnType = PIDParams
+
+    def _unpack_data(self, data: bytes) -> PIDParams:
+        """Return PID parameters as a dictionary."""
+        return PIDParams(
+            pid_p=Kpid(to_int(data[0:4])),
+            pid_i=Kpid(to_int(data[4:8])),
+            pid_d=Kpid(to_int(data[8:12])),
+        )
+
+
+@dataclass
+class GetBusVoltage(GetCommand, ReturnData):
     """Get the bus voltage."""
 
-    voltage_unit: VoltageUnit = VoltageUnit.default
+    _code = Code.GET_BUS_VOLTAGE
+    _response_length = 5
+    ReturnType = VoltageParams
 
-    @property
-    def _code(self) -> Code:
-        """Code of the command."""
-        return Code.GET_BUS_VOLTAGE
-
-    @property
-    def _command_body(self) -> bytes:
-        """Command bytes."""
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "bus_voltage": _int(response[2:4]),  # mV
-            "checksum": response[4],
-        }
-
-    @property
-    def raw_value(self) -> int:
-        """Raw value of the command."""
-        return _int(self.response[2:4])
-
-    @property
-    def value(self) -> float:
-        """Value of the command."""
-        return self.raw_value / self.voltage_unit.value
-
-    @property
-    def parameter_dict(self) -> dict[str, float]:
-        """Parameter dictionary."""
-        return {f"bus_voltage ({self.voltage_unit.name})": self.value}
+    def _unpack_data(self, data: bytes) -> VoltageParams:
+        """Return bus voltage as a dictionary."""
+        return VoltageParams(
+            voltage=to_int(data),
+        )
 
 
 @dataclass
 class GetPhaseCurrent(GetCommand):
     """Get phase current."""
 
-    current_unit: CurrentUnit = CurrentUnit.default
+    _code = Code.GET_PHASE_CURRENT
+    _response_length = 5
+    ReturnType = CurrentParams
 
-    @property
-    def _code(self) -> Code:
-        """Code of the command."""
-        return Code.GET_PHASE_CURRENT
-
-    @property
-    def _command_body(self) -> bytes:
-        """Command bytes."""
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "phase_current": _int(response[2:4]),  # mA
-            "checksum": response[4],
-        }
-
-    @property
-    def raw_value(self) -> int:
-        """Raw value of the command."""
-        return _int(self.response[2:4])
-
-    @property
-    def value(self) -> float:
-        """Normalized value of the command."""
-        return self.raw_value / self.current_unit.value
-
-    @property
-    def parameter_dict(self) -> dict[str, float]:
-        """Parameter dictionary."""
-        return {f"phase_current ({self.current_unit.name})": self.value}
+    def _unpack_data(self, data: bytes) -> CurrentParams:
+        """Return phase current as a dictionary."""
+        return CurrentParams(
+            current=to_int(data),
+        )
 
 
 @dataclass
 class GetEncoderValue(AnglePosition):
     """Get encoder value."""
 
-    @property
-    def _code(self) -> Code:
-        return Code.GET_ENCODER_VALUE
+    _code = Code.GET_ENCODER_VALUE
+    _response_length = 5
+    ReturnType = EncoderParams
 
-    @property
-    def _command_body(self) -> bytes:
-        """Command bytes."""
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Response dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "calibrated_encoder_value": _int(response[2:4]),
-            "checksum": response[4],
-        }
-
-    @property
-    def raw_value(self) -> int:
-        """Raw value of the command."""
-        return _int(self.response[2:4])
-
-    @property
-    def value(self) -> float:
-        """Value of the command."""
-        return self.angle
-
-    @property
-    def parameter_dict(self) -> dict[str, float]:
-        """Parameter dictionary."""
-        return {
-            f"encoder_value ({self.angle_unit.name})": self.angle,
-        }
+    def _unpack_data(self, data: bytes) -> EncoderParams:
+        """Return encoder value as a dictionary."""
+        return EncoderParams(
+            encoder_value=to_int(data),
+        )
 
 
 @dataclass
 class GetPulseCount(GetCommand):
     """Get pulse count."""
 
-    @property
-    def _code(self) -> Code:
-        return Code.GET_PULSE_COUNT
+    _code = Code.GET_PULSE_COUNT
+    _response_length = 7
+    ReturnType = PulseCountParams
+
+    def _unpack_data(self, data: bytes) -> PulseCountParams:
+        """Return pulse count as a dictionary."""
+        return PulseCountParams(
+            pulse_count=to_int(data),
+        )
 
     @property
     def _command_body(self) -> bytes:

@@ -20,13 +20,15 @@ class ExtendedIntEnum(IntEnum):
         """Bytes representation."""
         return self.value.to_bytes(1, "big")
 
+
 @dataclass(frozen=True)
 class SystemConstants:
     """System constants for stepper motor protocol.
-    
+
     :param SERIAL_TIMEOUT: Timeout for serial communication in seconds
     :param MAX_RETRIES: Maximum number of retries for failed commands
     """
+
     SERIAL_TIMEOUT: float = field(default=0.005)
     MAX_RETRIES: int = field(default=3)
 
@@ -129,6 +131,7 @@ class StatusCode(ExtendedIntEnum):
     FIXED_CHECKSUM_BYTE = 0x6B
     SUCCESS = 0x02
     CONDITIONAL_ERROR = 0xE2
+    MAX_RETRIES_EXCEEDED = 0xE3
     ERROR = 0xEE
 
 
@@ -221,6 +224,7 @@ class EnableFlag(ExtendedIntEnum):
 
     DISABLE = 0x00
     ENABLE = 0x01
+    default = ENABLE
 
 
 class Direction(ExtendedIntEnum):
@@ -359,34 +363,6 @@ class AutoHoming(ExtendedIntEnum):
     default = DISABLE
 
 
-@dataclass
-class HomingStatus:
-    """Homing status for homing commands."""
-
-    status_code: int
-    encoder_ready: bool = field(init=False)
-    encoder_calibrated: bool = field(init=False)
-    is_homing: bool = field(init=False)
-    homing_failed: bool = field(init=False)
-
-    def __post_init__(self) -> None:
-        """Post initialization to set flags."""
-        self.encoder_ready = bool(self.status_code & 0x01)
-        self.encoder_calibrated = bool(self.status_code & 0x02)
-        self.is_homing = bool(self.status_code & 0x04)
-        self.homing_failed = bool(self.status_code & 0x08)
-
-    @property
-    def __dict__(self) -> dict[str, bool]:
-        """Dictionary representation of the homing status."""
-        return {
-            "encoder_ready": self.encoder_ready,
-            "encoder_calibrated": self.encoder_calibrated,
-            "homing_active": self.is_homing,
-            "homing_failed": self.homing_failed,
-        }
-
-
 class Kpid(RangedInt):
     """Kp, Ki, Kd for PID control.
 
@@ -409,34 +385,6 @@ class Kpid(RangedInt):
     def default_kd(self) -> int:
         """Default Kd."""
         return 62000
-
-
-@dataclass
-class StepperStatus:
-    """Stepper status for read commands."""
-
-    ready_status: int
-    enabled: bool = field(init=False)
-    in_position: bool = field(init=False)
-    stalled: bool = field(init=False)
-    stall_protection_active: bool = field(init=False)
-
-    def __post_init__(self) -> None:
-        """Post initialization to set flags."""
-        self.enabled = bool(self.ready_status & 0x01)
-        self.in_position = bool(self.ready_status & 0x02)
-        self.stalled = bool(self.ready_status & 0x04)
-        self.stall_protection_active = bool(self.ready_status & 0x08)
-
-    @property
-    def __dict__(self) -> dict[str, bool]:
-        """Dictionary representation of the stepper status."""
-        return {
-            "enabled": self.enabled,
-            "in_position": self.in_position,
-            "stalled": self.stalled,
-            "stall_protection_active": self.stall_protection_active,
-        }
 
 
 class MotorType(ExtendedIntEnum):
@@ -637,6 +585,12 @@ class StallProtect(ExtendedIntEnum):
     default = ENABLE
 
 
+class AnglePosition(RangedInt):
+    """Angular position of the device."""
+
+    meta = MetaParam(minimum=0, maximum=65535, default=0, digits=4)
+
+
 class StallSpeed(RangedInt):
     """Stall speed in RPM for configuration commands.
 
@@ -757,8 +711,8 @@ class AngleUnit(Enum):
     Used in: set_config
     """
 
-    deg = 360
-    rad = 2 * math.pi
+    deg = 65536 / 360
+    rad = 65536 / 2 / math.pi
     default = deg
 
 
@@ -771,16 +725,3 @@ class TimeUnit(ExtendedIntEnum):
     ms = 1  # noqa: N815
     s = 1000
     default = ms
-
-
-@dataclass
-class DefaultParameters:
-    """Default parameters for configuration commands."""
-
-    open_loop_current: int = 1000
-    max_closed_loop_current: int = 1000
-    max_voltage: int = 4000
-    stall_speed: int = 28
-    stall_current: int = 2400
-    stall_time: int = 4000
-    position_window: int = 1

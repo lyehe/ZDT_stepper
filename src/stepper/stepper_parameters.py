@@ -1,6 +1,7 @@
 """params container classes."""
 
 import json
+from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TypeAlias
@@ -30,6 +31,7 @@ from .stepper_constants import (
     HomingMode,
     HomingSpeed,
     HomingTimeout,
+    InductanceUnit,
     Kpid,
     MaxVoltage,
     Microstep,
@@ -38,6 +40,7 @@ from .stepper_constants import (
     OnTargetWindow,
     OpenLoopCurrent,
     PulseCount,
+    ResistanceUnit,
     ResponseMode,
     ScreenOff,
     Speed,
@@ -45,7 +48,7 @@ from .stepper_constants import (
     StallProtect,
     StallSpeed,
     StallTime,
-    StoreFlag,
+    TimeUnit,
     VoltageUnit,
 )
 
@@ -105,7 +108,17 @@ class StepperParams:
 
 
 @dataclass
-class JogParams(StepperParams):
+class StepperInput(StepperParams, ABC):
+    """Stepper params input class."""
+
+    @abstractmethod
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        pass
+
+
+@dataclass
+class JogParams(StepperInput):
     """Velocity data params."""
 
     direction: Direction = Direction.default
@@ -119,7 +132,7 @@ class JogParams(StepperParams):
 
 
 @dataclass
-class PositionParams(StepperParams):
+class PositionParams(StepperInput):
     """Position data params."""
 
     direction: Direction = field(default_factory=lambda: Direction.default)
@@ -143,7 +156,7 @@ class PositionParams(StepperParams):
 
 
 @dataclass
-class HomingParams(StepperParams):
+class HomingParams(StepperInput):
     """Home parameters params.
 
     :param store: Store flag
@@ -157,7 +170,6 @@ class HomingParams(StepperParams):
     :param auto_home: Auto home flag
     """
 
-    store: StoreFlag
     homing_mode: HomingMode
     homing_direction: HomingDirection
     homing_speed: HomingSpeed
@@ -167,26 +179,146 @@ class HomingParams(StepperParams):
     collision_detection_time: CollisionDetectionTime
     auto_home: AutoHoming
 
+    current_unit: CurrentUnit = CurrentUnit.default
+    time_unit: TimeUnit = TimeUnit.default
+
     @property
     def bytes(self) -> bytes:
         """Bytes representation."""
         return bytes(
             [
-                self.store,
                 self.homing_mode,
                 self.homing_direction,
                 *self.homing_speed.bytes,
-                self.homing_timeout,
+                *self.homing_timeout.bytes,
                 *self.collision_detection_speed.bytes,
-                self.collision_detection_current,
-                self.collision_detection_time,
+                *self.collision_detection_current.bytes,
+                *self.collision_detection_time.bytes,
                 self.auto_home,
             ]
         )
 
+    @property
+    def __dict__(self) -> dict:
+        """Dictionary representation."""
+        return {
+            "homing_mode": self.homing_mode.name,
+            "homing_direction": self.homing_direction.name,
+            "homing_speed": self.homing_speed,
+            "homing_timeout": self.homing_timeout,
+            "collision_detection_speed": self.collision_detection_speed,
+            "collision_detection_current": self.collision_detection_current / self.current_unit,
+            "collision_detection_time": self.collision_detection_time,
+            "auto_home": self.auto_home.name,
+        }
+
 
 @dataclass
-class ConfigParams(StepperParams):
+class HomingStatus:
+    """Homing status for homing commands."""
+
+    status_code: int
+    encoder_ready: bool = field(init=False)
+    encoder_calibrated: bool = field(init=False)
+    is_homing: bool = field(init=False)
+    homing_failed: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Post initialization to set flags."""
+        self.encoder_ready = bool(self.status_code & 0x01)
+        self.encoder_calibrated = bool(self.status_code & 0x02)
+        self.is_homing = bool(self.status_code & 0x04)
+        self.homing_failed = bool(self.status_code & 0x08)
+
+    @property
+    def __dict__(self) -> dict[str, bool]:
+        """Dictionary representation of the homing status."""
+        return {
+            "encoder_ready": self.encoder_ready,
+            "encoder_calibrated": self.encoder_calibrated,
+            "homing_active": self.is_homing,
+            "homing_failed": self.homing_failed,
+        }
+
+
+@dataclass
+class VersionParams(StepperParams):
+    """Version parameters params."""
+
+    firmware_version: int
+    hardware_version: int
+
+
+@dataclass
+class MotorRHParams(StepperParams):
+    """Motor RH parameters params."""
+
+    phase_resistance: int
+    phase_inductance: int
+    resistance_unit: ResistanceUnit = field(default_factory=lambda: ResistanceUnit.default)
+    inductance_unit: InductanceUnit = field(default_factory=lambda: InductanceUnit.default)
+
+
+@dataclass
+class VoltageParams(StepperParams):
+    """Voltage parameters params."""
+
+    voltage: int
+    voltage_unit: VoltageUnit = field(default_factory=lambda: VoltageUnit.default)
+
+    @property
+    def __dict__(self) -> dict:
+        """Dictionary representation."""
+        return {"voltage": self.voltage / self.voltage_unit}
+
+
+@dataclass
+class CurrentParams(StepperParams):
+    """Current parameters params."""
+
+    current: int
+    current_unit: CurrentUnit = field(default_factory=lambda: CurrentUnit.default)
+
+    @property
+    def __dict__(self) -> dict:
+        """Dictionary representation."""
+        return {"current": self.current / self.current_unit}
+
+
+@dataclass
+class EncoderParams(StepperParams):
+    """Encoder parameters params."""
+
+    encoder_value: int
+    encoder_unit: AngleUnit = field(default_factory=lambda: AngleUnit.default)
+
+    @property
+    def __dict__(self) -> dict:
+        """Dictionary representation."""
+        return {"encoder_value": self.encoder_value / self.encoder_unit}
+
+
+@dataclass
+class PIDParams(StepperInput):
+    """PID parameters params.
+
+    :param pid_p: PID P
+    :param pid_i: PID I
+    :param pid_d: PID D
+    """
+
+    pid_p: Kpid = Kpid.default_kp
+    pid_i: Kpid = Kpid.default_ki
+    pid_d: Kpid = Kpid.default_kd
+
+    @property
+    def bytes(self) -> bytes:
+        """Bytes representation."""
+        return bytes([*self.pid_p.bytes, *self.pid_i.bytes, *self.pid_d.bytes])
+
+
+@dataclass
+class ConfigParams(StepperInput):
     """Motor parameters params.
 
     :param motor_type: Motor type
@@ -311,22 +443,31 @@ class SystemParams(StepperParams):
 
 
 @dataclass
-class PIDParams(StepperParams):
-    """PID parameters params.
+class StepperStatus:
+    """Stepper status for read commands."""
 
-    :param pid_p: PID P
-    :param pid_i: PID I
-    :param pid_d: PID D
-    """
+    ready_status: int
+    enabled: bool = field(init=False)
+    in_position: bool = field(init=False)
+    stalled: bool = field(init=False)
+    stall_protection_active: bool = field(init=False)
 
-    pid_p: Kpid = Kpid.default_kp
-    pid_i: Kpid = Kpid.default_ki
-    pid_d: Kpid = Kpid.default_kd
+    def __post_init__(self) -> None:
+        """Post initialization to set flags."""
+        self.enabled = bool(self.ready_status & 0x01)
+        self.in_position = bool(self.ready_status & 0x02)
+        self.stalled = bool(self.ready_status & 0x04)
+        self.stall_protection_active = bool(self.ready_status & 0x08)
 
     @property
-    def bytes(self) -> bytes:
-        """Bytes representation."""
-        return bytes([*self.pid_p.bytes, *self.pid_i.bytes, *self.pid_d.bytes])
+    def __dict__(self) -> dict[str, bool]:
+        """Dictionary representation of the stepper status."""
+        return {
+            "enabled": self.enabled,
+            "in_position": self.in_position,
+            "stalled": self.stalled,
+            "stall_protection_active": self.stall_protection_active,
+        }
 
 
 @dataclass

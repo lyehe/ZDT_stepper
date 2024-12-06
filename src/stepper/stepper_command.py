@@ -1,6 +1,7 @@
 """Command classes to construct commands and handle responses."""
 
 from abc import ABC, abstractmethod
+from dataclasses import asdict
 from logging import getLogger
 from time import sleep, time
 from typing import TypeAlias, TypeVar
@@ -9,20 +10,21 @@ from .stepper_constants import (
     Address,
     ChecksumMode,
     Code,
+    ExtendedIntEnum,
     Protocol,
+    RangedInt,
     StatusCode,
     StoreFlag,
     SyncFlag,
     SystemConstants,
 )
 from .stepper_exceptions import CommandError
-from .stepper_parameters import DeviceParams
+from .stepper_parameters import DeviceParams, StepperInput
 
 logger = getLogger(__name__)
 
 
-ParamsType = TypeVar("ParamsType")
-ValueType = TypeVar("ValueType", int, bytes, float)
+DataType: TypeAlias = int | bytes | float
 GroupSettingType: TypeAlias = StoreFlag | SyncFlag
 
 
@@ -67,13 +69,15 @@ def _add_checksum(command_bytes: bytes, checksum_mode: ChecksumMode) -> bytes:
     return command_bytes + _calculate_checksum(command_bytes, checksum_mode)
 
 
-def _int(input: bytes) -> int:
+def to_int(input: bytes) -> int:
+    """Convert bytes to int."""
     return int.from_bytes(input, "big")
 
 
-def _signed_int(input: bytes) -> int:
+def to_signed_int(input: bytes) -> int:
+    """Convert long bytes to signed int."""
     sign = -1 if input[0] == 1 else 1
-    return sign * _int(input[1:])
+    return sign * to_int(input[1:])
 
 
 class Command(ABC):
@@ -82,6 +86,8 @@ class Command(ABC):
     _code: Code
     _response_length: int
     _protocol: Protocol | None = None
+    _command_lock: bool = False
+    ParamsType = TypeVar("ParamsType", StepperInput, ExtendedIntEnum, RangedInt)
 
     def __init__(
         self,
@@ -97,6 +103,9 @@ class Command(ABC):
         :param checksum_mode: Checksum calculation mode
         :param delay: Delay after sending the command
         """
+        if self._command_lock:
+            raise CommandError("Command is locked.")
+
         self._timestamp = time()
 
         self.address = device.address
@@ -106,18 +115,18 @@ class Command(ABC):
         self.setting = self._process_setting(setting)
 
         self._command = _add_checksum(self._command_body, self.checksum_mode)
-        self._response: ValueType = None
-        self._raw_value: ValueType = None
-        self._value: ValueType = None
+        self._response: DataType = None
+        self._raw_data: DataType = None
+        self._data: DataType = None
         self.serial_connection = device.serial_connection
         self._connection_flag = self.serial_connection.is_open
 
         if not self._connection_flag:
             logger.debug(f"Opening {self.serial_connection.name}")
             with self.serial_connection:
-                self._success = self._execute()
+                self._status = self._execute()
         else:
-            self._success = self._execute()
+            self._status = self._execute()
 
     @abstractmethod
     def _process_params(self, params: ParamsType | None) -> ParamsType:
@@ -130,7 +139,7 @@ class Command(ABC):
         ...
 
     @abstractmethod
-    def _process_data(self, data: bytes) -> bool:
+    def _process_data(self, data: bytes) -> StatusCode:
         """Process data from response."""
         ...
 
@@ -140,9 +149,11 @@ class Command(ABC):
         body = bytes([self.address, self._code])
         if self._protocol is not None:
             body += self._protocol.bytes
+        if isinstance(self.setting, StoreFlag):
+            body += self.setting.bytes
         if self.params is not None:
             body += self.params.bytes
-        if self.setting is not None:
+        if isinstance(self.setting, SyncFlag):
             body += self.setting.bytes
         return body
 
@@ -162,14 +173,14 @@ class Command(ABC):
         return self._response
 
     @property
-    def raw_value(self) -> bytes:
-        """Raw command value."""
-        return self._response[2:-1]
+    def raw_data(self) -> ParamsType:
+        """Raw command data."""
+        return self._raw_data
 
     @property
-    def value(self) -> ValueType:
-        """Command value."""
-        return self._value
+    def data(self) -> DataType:
+        """Command data."""
+        return self._data
 
     @property
     def is_serial_active(self) -> bool:
@@ -177,9 +188,14 @@ class Command(ABC):
         return self._connection_flag
 
     @property
-    def is_success(self) -> bool:
+    def is_success(self) -> bool | StatusCode:
         """Command success."""
-        return self._success
+        return self._status == StatusCode.SUCCESS
+
+    @property
+    def status(self) -> str:
+        """Command result."""
+        return self._status.name
 
     def _reset_buffers(self):
         """Reset input and output buffers."""
@@ -227,7 +243,7 @@ class Command(ABC):
             logger.debug(f"Delaying for {self.delay} seconds")
             sleep(self.delay)
 
-    def _execute(self) -> bool:
+    def _execute(self) -> StatusCode:
         """Send the command to the serial port and read response.
 
         :return: True if the command was successful, False otherwise
@@ -242,7 +258,7 @@ class Command(ABC):
                 address = self._read_address()
                 code = self._read_code()
                 data = self._read_data()
-                success = self._process_data(data)
+                status = self._process_data(data)
                 checksum = self._read_checksum(address + code + data)
                 self._response = address + code + data + checksum
                 self._delay()
@@ -251,8 +267,7 @@ class Command(ABC):
                 self._reset_buffers()
             finally:
                 tries += 1
-
-        return tries < SystemConstants.MAX_RETRIES and success
+        return status if tries < SystemConstants.MAX_RETRIES else StatusCode.MAX_RETRIES_EXCEEDED
 
     def __repr__(self) -> str:
         """Representation of the command."""
@@ -261,3 +276,74 @@ class Command(ABC):
     def __str__(self) -> str:
         """String representation of the command."""
         return f"{self.__class__.__name__}({self.address}, {self.params}, {self.setting})"
+
+
+class WithNoParams(Command):
+    """Command with no parameters."""
+
+    def _process_params(self, params: None) -> None:
+        return None
+
+
+class WithEnumParams(Command):
+    """Command with parameters."""
+
+    ParamsType = TypeVar("ParamsType", bound=ExtendedIntEnum)
+
+    def _process_params(self, params: ParamsType | None) -> ParamsType:
+        return self.ParamsType.default if params is None else params
+
+
+class WithClassParams(Command):
+    """Command with parameters."""
+
+    ParamsType = TypeVar("ParamsType", bound=StepperInput | RangedInt)
+
+    def _process_params(self, params: ParamsType | None) -> ParamsType:
+        return self.ParamsType() if params is None else params  # type: ignore
+
+
+class TakeNoSetting(Command):
+    """Command with no setting."""
+
+    def _process_setting(self, setting: None) -> None:
+        return None
+
+
+class TakeSyncSetting(Command):
+    """Command with sync setting."""
+
+    def _process_setting(self, setting: SyncFlag | None) -> SyncFlag:
+        return SyncFlag.default if setting is None else setting
+
+
+class TakeStoreSetting(Command):
+    """Command with store setting."""
+
+    def _process_setting(self, setting: StoreFlag | None) -> StoreFlag:
+        return StoreFlag.default if setting is None else setting
+
+
+class ReturnSuccess(Command):
+    """Command with no data response."""
+
+    _response_length: int = 4
+
+    def _process_data(self, data: bytes) -> StatusCode:
+        return StatusCode(to_int(data))
+
+
+class ReturnData(Command):
+    """Command with data response."""
+
+    _response_length: int
+    ReturnType = TypeVar("ReturnType")
+
+    def _unpack_data(self, data: bytes) -> ReturnType:
+        """Unpack data from response."""
+        return self.ReturnType(to_int(data))
+
+    def _process_data(self, data: bytes) -> StatusCode:
+        self._raw_data = self._unpack_data(data)
+        self._data = asdict(self._raw_data)
+        return StatusCode.SUCCESS

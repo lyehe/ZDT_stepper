@@ -1,12 +1,19 @@
-"""Homing related commands."""
+"""Home commands for stepper motor."""
 
-
-from dataclasses import asdict, dataclass
 from logging import getLogger
 
-from .stepper_command import Command, _int
+from .stepper_command import (
+    ReturnData,
+    ReturnSuccess,
+    TakeNoSetting,
+    TakeStoreSetting,
+    TakeSyncSetting,
+    WithClassParams,
+    WithEnumParams,
+    WithNoParams,
+    to_int,
+)
 from .stepper_constants import (
-    Address,
     AutoHoming,
     Code,
     CollisionDetectionCurrent,
@@ -15,173 +22,67 @@ from .stepper_constants import (
     HomingDirection,
     HomingMode,
     HomingSpeed,
-    HomingStatus,
     HomingTimeout,
     Protocol,
-    StoreFlag,
-    SyncFlag,
 )
+from .stepper_parameters import HomingParams, HomingStatus
 
 logger = getLogger(__name__)
 
 
-class SetHome(Command):
-    """Set home command configuration.
+class SetHome(WithNoParams, TakeStoreSetting, ReturnSuccess):
+    """Set home command configuration."""
 
-    :param store: Store flag
-    """
-
-    store: StoreFlag = StoreFlag.default
-
-    @property   
-    def _code(self) -> Code:
-        return Code.SET_HOME
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes([self.address, self._code, Protocol.SET_HOME, self.store])
+    _code: Code = Code.SET_HOME
+    _protocol: Protocol = Protocol.SET_HOME
 
 
+class Home(WithEnumParams, TakeSyncSetting, ReturnSuccess):
+    """Home command configuration."""
 
-class Home(Command):
-    """Home command configuration.
+    _code: Code = Code.HOME
+    ParamsType = HomingMode
 
-    :param homing_mode: Homing mode
-    :param sync: Sync flag
-    """
 
-    homing_mode: HomingMode = HomingMode.default
-    sync: SyncFlag = SyncFlag.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.HOME
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes([self.address, self._code, self.homing_mode, self.sync])
-
-class StopHome(Command):
+class StopHome(WithNoParams, TakeNoSetting, ReturnSuccess):
     """Stop homing command configuration."""
 
-    @property
-    def _code(self) -> Code:
-        return Code.STOP_HOME
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes([self.address, self._code, Protocol.STOP_HOME])
+    _code: Code = Code.STOP_HOME
+    _protocol: Protocol = Protocol.STOP_HOME
 
 
-@dataclass
-class GetHomeParam(Command):
+class RetrieveHomeParam(WithNoParams, TakeNoSetting, ReturnData):
     """Get home parameters command configuration."""
 
-    @property
-    def _code(self) -> Code:
-        return Code.GET_HOME_PARAM
+    _code: Code = Code.GET_HOME_PARAM
+    _response_length: int = 18
+    ReturnType = HomingParams
 
-    @property
-    def _command_body(self) -> bytes:
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
+    def _unpack_data(self, data: bytes) -> HomingParams:
         """Return home parameters as a dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "homing_mode": HomingMode(response[2]).name,
-            "homing_direction": HomingDirection(response[3]).name,
-            "homing_speed": HomingSpeed(_int(response[4:6])),
-            "homing_timeout": HomingTimeout(_int(response[6:10])),
-            "collision_detection_speed": CollisionDetectionSpeed(_int(response[10:12])),
-            "collision_detection_current": CollisionDetectionCurrent(_int(response[12:14])),
-            "collision_detection_time": CollisionDetectionTime(_int(response[14:16])),
-            "auto_home": AutoHoming(response[16]).name,
-            "checksum": response[17],
-        }
-
-
-@dataclass
-class SetHomeParam(Command):
-    """Set home parameters command configuration.
-
-    :param store: Store flag
-    :param homing_mode: Homing mode
-    :param homing_direction: Homing direction
-    :param homing_speed: Homing speed
-    :param homing_timeout: Homing timeout
-    :param collision_detection_speed: Collision detection speed
-    :param collision_detection_current: Collision detection current
-    :param collision_detection_time: Collision detection time
-    :param auto_home: Auto home flag
-    """
-
-    store: StoreFlag = StoreFlag.default
-    homing_mode: HomingMode = HomingMode.default
-    homing_direction: HomingDirection = HomingDirection.default
-    homing_speed: HomingSpeed = HomingSpeed.default
-    homing_timeout: HomingTimeout = HomingTimeout.default
-    collision_detection_speed: CollisionDetectionSpeed = CollisionDetectionSpeed.default
-    collision_detection_current: CollisionDetectionCurrent = CollisionDetectionCurrent.default
-    collision_detection_time: CollisionDetectionTime = CollisionDetectionTime.default
-    auto_home: AutoHoming = AutoHoming.default
-
-    @property
-    def _code(self) -> Code:
-        return Code.SET_HOME_PARAM
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes(
-            [
-                self.address,
-                self._code,
-                Protocol.SET_HOME_PARAM,
-                self.store,
-                self.homing_mode,
-                self.homing_direction,
-                *self.homing_speed.bytes,
-                *self.homing_timeout.bytes,
-                *self.collision_detection_speed.bytes,
-                *self.collision_detection_current.bytes,
-                *self.collision_detection_time.bytes,
-                self.auto_home,
-            ]
+        return HomingParams(
+            homing_mode=HomingMode(data[0]),
+            homing_direction=HomingDirection(data[1]),
+            homing_speed=HomingSpeed(to_int(data[2:4])),
+            homing_timeout=HomingTimeout(to_int(data[4:8])),
+            collision_detection_speed=CollisionDetectionSpeed(to_int(data[8:10])),
+            collision_detection_current=CollisionDetectionCurrent(to_int(data[10:12])),
+            collision_detection_time=CollisionDetectionTime(to_int(data[12:14])),
+            auto_home=AutoHoming(data[14]),
         )
 
 
-@dataclass
-class GetHomeStatus(Command):
+class SetHomeParam(WithClassParams, TakeStoreSetting, ReturnSuccess):
+    """Set home parameters command configuration."""
+
+    _code: Code = Code.SET_HOME_PARAM
+    _protocol: Protocol = Protocol.SET_HOME_PARAM
+    ParamsType = HomingParams
+
+
+class GetHomeStatus(WithNoParams, TakeNoSetting, ReturnData):
     """Get home status command configuration."""
 
-    @property
-    def _code(self) -> Code:
-        return Code.GET_HOME_STATUS
-
-    @property
-    def _command_body(self) -> bytes:
-        return bytes([self.address, self._code])
-
-    @property
-    def response_dict(self) -> dict[str, int]:
-        """Return homing status as a dictionary."""
-        response = self.response
-        return {
-            "address": Address(response[0]),
-            "code": Code(response[1]).name,
-            "homing_status": HomingStatus(response[2]).name,
-            "checksum": response[3],
-        }
-
-    @property
-    def homing_status(self) -> HomingStatus:
-        """Return homing status."""
-        return HomingStatus(self.response_dict["homing_status"])
-
-    @property
-    def parameter_dict(self) -> dict[str, bool]:
-        """Return homing status as a dictionary."""
-        return asdict(self.homing_status)
+    _code: Code = Code.GET_HOME_STATUS
+    _response_length = 4
+    ReturnType = HomingStatus
