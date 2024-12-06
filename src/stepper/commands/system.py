@@ -1,18 +1,11 @@
 """System commands for stepper motor."""
 
-from logging import getLogger
-
-from .stepper_command import (
+from stepper.commands.commands import (
     ReturnSuccess,
     TakeNoSetting,
     WithNoParams,
 )
-from .stepper_constants import (
-    Code,
-    Protocol,
-)
-
-logger = getLogger(__name__)
+from stepper.stepper_core.constants import Code, Protocol
 
 
 class SystemCommand(WithNoParams, TakeNoSetting, ReturnSuccess):

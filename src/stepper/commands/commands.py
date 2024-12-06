@@ -5,7 +5,7 @@ from logging import getLogger
 from time import sleep, time
 from typing import TypeAlias, TypeVar
 
-from .stepper_constants import (
+from stepper.stepper_core.constants import (
     Address,
     ChecksumMode,
     Code,
@@ -17,8 +17,9 @@ from .stepper_constants import (
     SyncFlag,
     SystemConstants,
 )
-from .stepper_exceptions import CommandError
-from .stepper_parameters import DeviceParams, StepperInput, StepperOutput
+
+from ..stepper_core.exceptions import CommandError
+from ..stepper_core.parameters import DeviceParams, StepperInput, StepperOutput
 
 logger = getLogger(__name__)
 
@@ -341,5 +342,5 @@ class ReturnData(Command):
     def _process_data(self, data: bytes) -> StatusCode:
         self._raw_data = self._unpack_data(data)
         logger.debug(f"Raw data: {self._raw_data}")
-        self._data = self._raw_data.__dict__
+        self._data = self._raw_data.data_dict
         return StatusCode.SUCCESS

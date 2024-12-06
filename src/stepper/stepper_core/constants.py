@@ -3,13 +3,6 @@
 import math
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from logging import getLogger
-from pathlib import Path
-from typing import TypeAlias
-
-logger = getLogger(__name__)
-COMPort: TypeAlias = str | Path
-Data: TypeAlias = bytes | None
 
 
 class ExtendedIntEnum(IntEnum):
@@ -308,7 +301,8 @@ class Speed(RangedInt):
     minimum = 0
     maximum = 3000
     default = 0
-    digits = 2  # Unit RPM
+    digits = 2
+    unit = SpeedUnit
 
     @property
     def stop(self) -> int:
@@ -386,7 +380,8 @@ class HomingSpeed(RangedInt):
     minimum = 0
     maximum = 300
     default = 30
-    digits = 2  # Unit: RPM
+    digits = 2
+    unit = SpeedUnit
 
 
 class HomingTimeout(RangedInt):
@@ -698,7 +693,8 @@ class StallSpeed(RangedInt):
     minimum = 0
     maximum = 500
     default = 28
-    digits = 2  # Unit: RPM
+    digits = 2
+    unit = SpeedUnit
 
 
 class StallCurrent(RangedInt):
@@ -722,7 +718,7 @@ class StallTime(RangedInt):
 
     minimum = 0
     maximum = 5000
-    default = 4000
+    default = 1000
     digits = 2
     unit = TimeUnit
 

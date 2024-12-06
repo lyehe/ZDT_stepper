@@ -1,6 +1,6 @@
 """Home commands for stepper motor."""
 
-from .stepper_command import (
+from stepper.commands.commands import (
     ReturnData,
     ReturnSuccess,
     TakeNoSetting,
@@ -10,12 +10,12 @@ from .stepper_command import (
     WithEnumParams,
     WithNoParams,
 )
-from .stepper_constants import (
+from stepper.stepper_core.constants import (
     Code,
     HomingMode,
     Protocol,
 )
-from .stepper_parameters import HomingParams, HomingStatus
+from stepper.stepper_core.parameters import HomingParams, HomingStatus
 
 
 class SetHome(WithNoParams, TakeStoreSetting, ReturnSuccess):

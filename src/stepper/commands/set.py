@@ -1,15 +1,13 @@
 """Set commands for stepper motor."""
 
-from src.stepper.stepper_parameters import StartSpeedParams
-
-from .stepper_command import (
+from stepper.commands.commands import (
     Command,
     ReturnSuccess,
     TakeStoreSetting,
     WithClassParams,
     WithEnumParams,
 )
-from .stepper_constants import (
+from stepper.stepper_core.constants import (
     Address,
     Code,
     Kpid,
@@ -19,6 +17,7 @@ from .stepper_constants import (
     Protocol,
     SpeedReduction,
 )
+from stepper.stepper_core.parameters import ConfigParams, StartSpeedParams
 
 
 class SetCommand(TakeStoreSetting, ReturnSuccess, Command):
@@ -30,6 +29,7 @@ class SetMicrostep(WithClassParams, SetCommand):
 
     _code = Code.SET_MICROSTEP
     _protocol = Protocol.SET_MICROSTEP
+    _command_lock: bool = True
     ParamsType = Microstep
 
 
@@ -47,6 +47,7 @@ class SetLoopMode(WithEnumParams, SetCommand):
 
     _code = Code.SET_LOOP_MODE
     _protocol = Protocol.SET_LOOP_MODE
+    _command_lock: bool = True
     ParamsType = LoopMode
 
 
@@ -55,6 +56,7 @@ class SetOpenLoopCurrent(WithClassParams, SetCommand):
 
     _code = Code.SET_OPEN_LOOP_CURRENT
     _protocol = Protocol.SET_OPEN_LOOP_CURRENT
+    _command_lock: bool = True
     ParamsType = OpenLoopCurrent
 
 
@@ -63,6 +65,7 @@ class SetPID(WithClassParams, SetCommand):
 
     _code = Code.SET_PID
     _protocol = Protocol.SET_PID
+    _command_lock: bool = True
     ParamsType = Kpid
 
 
@@ -71,6 +74,7 @@ class SetStartSpeed(WithClassParams, SetCommand):
 
     _code = Code.SET_START_SPEED
     _protocol = Protocol.SET_START_SPEED
+    _command_lock: bool = True
     ParamsType = StartSpeedParams
 
 
@@ -79,4 +83,14 @@ class SetReduction(WithClassParams, SetCommand):
 
     _code = Code.SET_REDUCTION
     _protocol = Protocol.SET_REDUCTION
+    _command_lock: bool = True
     ParamsType = SpeedReduction
+
+
+class SetConfig(WithClassParams, SetCommand):
+    """Set configuration command configuration."""
+
+    _code = Code.SET_CONFIG
+    _protocol = Protocol.SET_CONFIG
+    _command_lock: bool = True
+    ParamsType = ConfigParams

@@ -1,14 +1,14 @@
 """Get commands for stepper motor."""
 
-from src.stepper.stepper_command import (
+from stepper.commands.commands import (
     Command,
     Protocol,
     ReturnData,
     TakeNoSetting,
     WithNoParams,
 )
-from src.stepper.stepper_constants import Code
-from src.stepper.stepper_parameters import (
+from stepper.stepper_core.constants import Code
+from stepper.stepper_core.parameters import (
     BusVoltageParams,
     ConfigParams,
     EncoderParams,

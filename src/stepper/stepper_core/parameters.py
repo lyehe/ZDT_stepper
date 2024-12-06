@@ -9,7 +9,7 @@ from typing import TypeAlias
 import yaml
 from serial import Serial
 
-from .stepper_constants import (
+from .constants import (
     AbsoluteFlag,
     Acceleration,
     Address,
@@ -224,18 +224,18 @@ class HomingParams(StepperInput, StepperOutput):
         )
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {
             "homing_mode": self.homing_mode.name,
             "homing_direction": self.homing_direction.name,
-            f"homing_speed {self.speed_unit.name}": self.homing_speed / self.speed_unit,
+            f"homing_speed ({self.speed_unit.name})": self.homing_speed / self.speed_unit,
             "homing_timeout": self.homing_timeout,
-            f"collision_detection_speed {self.speed_unit.name}": self.collision_detection_speed
+            f"collision_detection_speed ({self.speed_unit.name})": self.collision_detection_speed
             / self.speed_unit,
-            f"collision_detection_current {self.current_unit.name}": self.collision_detection_current  # noqa: E501
+            f"collision_detection_current ({self.current_unit.name})": self.collision_detection_current  # noqa: E501
             / self.current_unit,
-            f"collision_detection_time {self.time_unit.name}": self.collision_detection_time
+            f"collision_detection_time ({self.time_unit.name})": self.collision_detection_time
             / self.time_unit,
             "auto_home": self.auto_home.name,
         }
@@ -273,7 +273,7 @@ class HomingStatus(StepperOutput):
         self.homing_failed = bool(self.status_code & 0x08)
 
     @property
-    def __dict__(self) -> dict[str, bool]:
+    def data_dict(self) -> dict[str, bool]:
         """Dictionary representation of the homing status."""
         return {
             "encoder_ready": self.encoder_ready,
@@ -296,7 +296,7 @@ class VersionParams(StepperOutput):
     hardware_version: int
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {
             "firmware_version": self.firmware_version,
@@ -319,12 +319,12 @@ class MotorRHParams(StepperOutput):
     inductance_unit: InductanceUnit = InductanceUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {
-            f"phase_resistance {self.resistance_unit.name}": self.phase_resistance
+            f"phase_resistance ({self.resistance_unit.name})": self.phase_resistance
             / self.resistance_unit,
-            f"phase_inductance {self.inductance_unit.name}": self.phase_inductance
+            f"phase_inductance ({self.inductance_unit.name})": self.phase_inductance
             / self.inductance_unit,
         }
 
@@ -353,7 +353,7 @@ class PIDParams(StepperInput, StepperOutput):
         return bytes([*self.pid_p.bytes, *self.pid_i.bytes, *self.pid_d.bytes])
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {"pid_p": self.pid_p, "pid_i": self.pid_i, "pid_d": self.pid_d}
 
@@ -375,7 +375,7 @@ class BusVoltageParams(StepperOutput):
     unit: VoltageUnit = VoltageUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {f"voltage ({self.unit.name})": self.voltage / self.unit.value}
 
@@ -393,7 +393,7 @@ class PhaseCurrentParams(StepperOutput):
     unit: CurrentUnit = CurrentUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {f"current ({self.unit.name})": self.current / self.unit.value}
 
@@ -411,7 +411,7 @@ class EncoderParams(StepperOutput):
     unit: AngleUnit = AngleUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {f"encoder_value ({self.unit.name})": self.encoder_value / self.unit.value}
 
@@ -429,7 +429,7 @@ class PulseCountParams(StepperOutput):
     microsteps: Microstep = Microstep.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {"pulse_count": self.pulse_count, "step_count": self.pulse_count / self.microsteps}
 
@@ -447,7 +447,7 @@ class TargetPositionParams(StepperOutput):
     unit: AngleUnit = AngleUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {f"target_position ({self.unit.name})": self.position / self.unit.value}
 
@@ -465,7 +465,7 @@ class OpenLoopTargetPositionParams(StepperOutput):
     unit: AngleUnit = AngleUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {f"open_loop_target_position ({self.unit.name})": self.position / self.unit.value}
 
@@ -483,9 +483,9 @@ class RealTimeSpeedParams(StepperOutput):
     unit: SpeedUnit = SpeedUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"real_time_speed {self.unit.name}": self.speed / self.unit}
+        return {f"real_time_speed ({self.unit.name})": self.speed / self.unit}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "RealTimeSpeedParams":
@@ -501,9 +501,9 @@ class RealTimePositionParams(StepperOutput):
     unit: AngleUnit = AngleUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"real_time_position {self.unit.name}": self.position / self.unit.value}
+        return {f"real_time_position ({self.unit.name})": self.position / self.unit.value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "RealTimePositionParams":
@@ -519,7 +519,7 @@ class PositionErrorParams(StepperOutput):
     unit: AngleUnit = AngleUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {f"position_error ({self.unit.name})": self.error / self.unit.value}
 
@@ -547,7 +547,7 @@ class StepperStatus(StepperOutput):
         self.stall_protection_active = bool(self.status_code & 0x08)
 
     @property
-    def __dict__(self) -> dict[str, bool]:
+    def data_dict(self) -> dict[str, bool]:
         """Dictionary representation of the stepper status."""
         return {
             "enabled": self.enabled,
@@ -564,7 +564,7 @@ class StepperStatus(StepperOutput):
 
 @dataclass
 class StartSpeedParams(StepperInput):
-    """Start speed parameters params."""
+    """Start speed parameters."""
 
     direction: Direction = Direction.default
     speed: Speed = Speed.default
@@ -574,7 +574,14 @@ class StartSpeedParams(StepperInput):
     @property
     def bytes(self) -> bytes:
         """Bytes representation."""
-        return bytes([self.direction, *self.speed.bytes, self.acceleration.bytes, self.en_control])
+        return bytes(
+            [
+                self.direction,
+                *self.speed.bytes,
+                self.acceleration,
+                self.en_control,
+            ]
+        )
 
 
 @dataclass
@@ -656,13 +663,13 @@ class ConfigParams(StepperInput, StepperOutput):
                 self.stall_protect,
                 *self.stall_speed.bytes,
                 *self.stall_current.bytes,
-                self.stall_time,
-                self.on_target_window,
+                *self.stall_time.bytes,
+                *self.on_target_window.bytes,
             ]
         )
 
     @property
-    def response_dict(self) -> dict:
+    def data_dict(self) -> dict:
         """Response dictionary."""
         return {
             "stepper_type": self.stepper_type.name,
@@ -673,20 +680,20 @@ class ConfigParams(StepperInput, StepperOutput):
             "microsteps": self.microsteps,
             "microstep_interp": self.microstep_interp.name,
             "screen_off": self.screen_off.name,
-            f"open_loop_current {self.current_unit.name}": self.open_loop_current
+            f"open_loop_current ({self.current_unit.name})": self.open_loop_current
             / self.current_unit,
-            f"max_closed_loop_current {self.current_unit.name}": self.max_closed_loop_current
+            f"max_closed_loop_current ({self.current_unit.name})": self.max_closed_loop_current
             / self.current_unit,
-            f"max_voltage {self.voltage_unit.name}": self.max_voltage / self.voltage_unit,
+            f"max_voltage ({self.voltage_unit.name})": self.max_voltage / self.voltage_unit,
             "baud_rate": self.baud_rate.name,
             "can_rate": self.can_rate.name,
             "address": self.address,
             "checksum_mode": self.checksum_mode.name,
             "response_mode": self.response_mode.name,
             "stall_protect": self.stall_protect.name,
-            f"stall_speed {self.speed_unit.name}": self.stall_speed / self.speed_unit,
-            f"stall_current {self.current_unit.name}": self.stall_current / self.current_unit,
-            f"stall_time {self.time_unit.name}": self.stall_time / self.time_unit,
+            f"stall_speed ({self.speed_unit.name})": self.stall_speed / self.speed_unit,
+            f"stall_current ({self.current_unit.name})": self.stall_current / self.current_unit,
+            f"stall_time ({self.time_unit.name})": self.stall_time / self.time_unit,
             "on_target_window": self.on_target_window / 10,
         }
 
@@ -760,7 +767,7 @@ class SystemParams(StepperOutput):
     speed_unit: SpeedUnit = SpeedUnit.default
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         return {
             f"bus_voltage ({self.voltage_unit.name})": self.bus_voltage / self.voltage_unit,
@@ -820,7 +827,7 @@ class Readables:
     pid_params: PIDParams | None = None
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         result = {}
         if self.system_params is not None:
@@ -845,7 +852,7 @@ class Writables:
     pid_params: PIDParams | None = None
 
     @property
-    def __dict__(self) -> dict:
+    def data_dict(self) -> dict:
         """Dictionary representation."""
         result = {}
         if self.position_params is not None:

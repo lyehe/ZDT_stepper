@@ -1,6 +1,6 @@
 """Move commands for stepper motor."""
 
-from .stepper_command import (
+from stepper.commands.commands import (
     ReturnSuccess,
     TakeNoSetting,
     TakeSyncSetting,
@@ -8,12 +8,12 @@ from .stepper_command import (
     WithEnumParams,
     WithNoParams,
 )
-from .stepper_constants import (
+from stepper.stepper_core.constants import (
     Code,
     EnableFlag,
     Protocol,
 )
-from .stepper_parameters import JogParams, PositionParams
+from stepper.stepper_core.parameters import JogParams, PositionParams
 
 
 class MoveCommand(TakeSyncSetting, ReturnSuccess):
