@@ -7,7 +7,7 @@ from stepper.commands.commands import (
     WithClassParams,
     WithEnumParams,
 )
-from stepper.stepper_core.constants import (
+from stepper.stepper_core.configs import (
     Address,
     Code,
     Kpid,
@@ -18,6 +18,17 @@ from stepper.stepper_core.constants import (
     SpeedReduction,
 )
 from stepper.stepper_core.parameters import ConfigParams, StartSpeedParams
+
+__all__ = [
+    "SetMicrostep",
+    "SetID",
+    "SetLoopMode",
+    "SetOpenLoopCurrent",
+    "SetPID",
+    "SetStartSpeed",
+    "SetReduction",
+    "SetConfig",
+]
 
 
 class SetCommand(TakeStoreSetting, ReturnSuccess, Command):

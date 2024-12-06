@@ -41,6 +41,20 @@ logger = logging.getLogger(__name__)
 PathVar = Path | str
 BAUDRATES = (9600, 115200, 19200, 38400, 57600)
 
+__all__ = [
+    "BAUDRATES",
+    "PathVar",
+    "PortInfo",
+    "TestCase",
+    "detect_baudrate",
+    "detect_port",
+    "list_ports_info",
+    "print_ports",
+    "print_ports_info",
+    "scan_ports",
+    "test_connection",
+]
+
 
 @dataclass
 class TestCase:

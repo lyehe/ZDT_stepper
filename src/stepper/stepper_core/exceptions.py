@@ -1,29 +1,37 @@
-"""Exceptions for stepper motor protocol."""
+"""Exceptions for stepper Stepper protocol."""
 
 from logging import getLogger
 
 logger = getLogger(__name__)
 
+__all__ = [
+    "StepperError",
+    "CommandError",
+    "ValidationError",
+    "CommunicationError",
+    "StatusError",
+]
 
-class MotorError(Exception):
-    """Base exception for motor errors."""
+
+class StepperError(Exception):
+    """Base exception for Stepper errors."""
 
     def __init__(self, message: str = "Unspecified"):
         """Initialize the exception."""
         logger.error(message)
 
 
-class CommandError(MotorError):
+class CommandError(StepperError):
     """Error executing a command."""
 
 
-class ValidationError(MotorError):
+class ValidationError(StepperError):
     """Error validating command parameters."""
 
 
-class CommunicationError(MotorError):
-    """Error communicating with the motor."""
+class CommunicationError(StepperError):
+    """Error communicating with the Stepper."""
 
 
-class StatusError(MotorError):
-    """Error with motor status."""
+class StatusError(StepperError):
+    """Error with Stepper status."""

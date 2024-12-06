@@ -1,99 +1,18 @@
 """Command classes for stepper motor control."""
 
-from .get import (
-    GetBusVoltage,
-    GetConfig,
-    GetEncoderValue,
-    GetError,
-    GetMotorRH,
-    GetOpenLoopSetpoint,
-    GetPhaseCurrent,
-    GetPID,
-    GetPulseCount,
-    GetRealTimePosition,
-    GetRealTimeSpeed,
-    GetStatus,
-    GetSysStatus,
-    GetTargetPosition,
-    GetVersion,
-)
-from .home import (
-    GetHomeStatus,
-    Home,
-    RetrieveHomeParam,
-    SetHome,
-    SetHomeParam,
-    StopHome,
-)
-from .move import (
-    Disable,
-    Enable,
-    EStop,
-    Jog,
-    Move,
-    SyncMove,
-)
-from .set import (
-    SetConfig,
-    SetID,
-    SetLoopMode,
-    SetMicrostep,
-    SetOpenLoopCurrent,
-    SetPID,
-    SetReduction,
-    SetStartSpeed,
-)
-from .system import (
-    CalibrateEncoder,
-    ClearStall,
-    FactoryReset,
-    ZeroAllPositions,
+from . import (
+    get,
+    home,
+    move,
+    set,
+    system,
 )
 
-__all__ = [
-    # Get commands
-    "GetBusVoltage",
-    "GetConfig",
-    "GetEncoderValue",
-    "GetError",
-    "GetHomeStatus",
-    "GetMotorRH",
-    "GetOpenLoopSetpoint",
-    "GetPhaseCurrent",
-    "GetPID",
-    "GetPulseCount",
-    "GetRealTimePosition",
-    "GetRealTimeSpeed",
-    "GetStatus",
-    "GetSysStatus",
-    "GetTargetPosition",
-    "GetVersion",
-    # Home commands
-    "GetHomeStatus",
-    "Home",
-    "RetrieveHomeParam",
-    "SetHome",
-    "SetHomeParam",
-    "StopHome",
-    # Move commands
-    "Disable",
-    "Enable",
-    "EStop",
-    "Jog",
-    "Move",
-    "SyncMove",
-    # Set commands
-    "SetConfig",
-    "SetID",
-    "SetLoopMode",
-    "SetMicrostep",
-    "SetOpenLoopCurrent",
-    "SetPID",
-    "SetReduction",
-    "SetStartSpeed",
-    # System commands
-    "CalibrateEncoder",
-    "ClearStall",
-    "FactoryReset",
-    "ZeroAllPositions",
-]
+# Explicitly list all available commands by combining submodule exports
+__all__ = (
+    *get.__all__,
+    *home.__all__,
+    *set.__all__,
+    *system.__all__,
+    *move.__all__,
+)

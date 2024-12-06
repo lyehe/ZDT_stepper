@@ -6,27 +6,26 @@ build-backend = "setuptools.build_meta"
 name = "zdt_stepper"
 version = "0.1.0"
 description = "ZDT stepper motor control library"
-authors = [
-    {name = "Yehe Liu", email = "yehe@opsiclear.com"},
-]
+authors = [{ name = "Yehe Liu", email = "yehe@opsiclear.com" }]
 requires-python = ">=3.10"
-dependencies = [
-    "pyserial",
-    "pyyaml",
-    "tqdm",
+dependencies = ["pyserial", "pyyaml", "tqdm"]
+license = { file = "LICENSE" }
+readme = "README.md"
+keywords = ["stepper", "motor", "control"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "ruff",
-    "pytest",
-    "pre-commit",
-    "twine",
-]
+dev = ["ruff", "pytest", "pre-commit", "twine"]
+build = ["setuptools", "wheel", "build"]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
-packages = {find = {where = ["src"]}}
+package-dir = { "" = "src" }
+packages = { find = { where = ["src"] } }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -65,3 +64,9 @@ known-first-party = ["zdt_stepper"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

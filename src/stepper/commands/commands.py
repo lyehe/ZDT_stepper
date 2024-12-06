@@ -5,7 +5,7 @@ from logging import getLogger
 from time import sleep, time
 from typing import TypeAlias, TypeVar
 
-from stepper.stepper_core.constants import (
+from stepper.stepper_core.configs import (
     Address,
     ChecksumMode,
     Code,
