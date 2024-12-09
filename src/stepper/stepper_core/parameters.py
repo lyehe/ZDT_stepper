@@ -80,6 +80,11 @@ __all__ = [
     "StartSpeedParams",
     "ConfigParams",
     "SystemParams",
+    "SerialParams",
+    "DeviceParams",
+    "InputParams",
+    "OutputParams",
+    "InputOutputParams",
 ]
 
 
@@ -238,6 +243,15 @@ class JogParams(StepperInput):
         """Bytes representation."""
         return bytes([self.direction, *self.speed.bytes, self.acceleration])
 
+    @property
+    def data_dict(self) -> dict:
+        """Dictionary representation."""
+        return {
+            "direction": self.direction.name,
+            "speed": self.speed,
+            "acceleration": self.acceleration,
+        }
+
 
 @dataclass
 class PositionParams(StepperInput):
@@ -275,6 +289,17 @@ class PositionParams(StepperInput):
                 self.absolute,
             ]
         )
+
+    @property
+    def data_dict(self) -> dict:
+        """Dictionary representation."""
+        return {
+            "direction": self.direction.name,
+            "speed": self.speed,
+            "acceleration": self.acceleration,
+            "pulse_count": self.pulse_count,
+            "absolute": self.absolute.name,
+        }
 
 
 @dataclass
@@ -885,6 +910,16 @@ class StartSpeedParams(StepperInput):
             ]
         )
 
+    @property
+    def data_dict(self) -> dict:
+        """Dictionary representation."""
+        return {
+            "direction": self.direction.name,
+            "speed": self.speed,
+            "acceleration": self.acceleration,
+            "enable_control": self.en_control.name,
+        }
+
 
 @dataclass
 class ConfigParams(StepperInput, StepperOutput):
@@ -935,11 +970,11 @@ class ConfigParams(StepperInput, StepperOutput):
     stall_time: StallTime
     on_target_window: OnTargetWindow
 
-    current_unit: CurrentUnit
-    voltage_unit: VoltageUnit
-    angle_unit: AngleUnit
-    time_unit: TimeUnit
-    speed_unit: SpeedUnit
+    current_unit: CurrentUnit = CurrentUnit.default
+    voltage_unit: VoltageUnit = VoltageUnit.default
+    angle_unit: AngleUnit = AngleUnit.default
+    time_unit: TimeUnit = TimeUnit.default
+    speed_unit: SpeedUnit = SpeedUnit.default
 
     _open_loop_current: float = field(init=False)
     _max_closed_loop_current: float = field(init=False)
@@ -1223,6 +1258,7 @@ class SystemParams(StepperOutput):
         )
 
 
+@dataclass
 class InputParams:
     """Parameters that can only be used as input.
 
@@ -1231,20 +1267,28 @@ class InputParams:
     :param start_speed_params: Parameters for start speed configuration
     :param loop_mode: Control loop mode (open/closed)
     :param speed_reduction: Speed reduction mode
+    :param sync_flag: Sync flag for movement
+    :param store_flag: Store flag for settings
     """
 
     jog_params: JogParams = field(default_factory=JogParams)
     position_params: PositionParams = field(default_factory=PositionParams)
     start_speed_params: StartSpeedParams = field(default_factory=StartSpeedParams)
-    loop_mode: LoopMode | int = LoopMode.default
-    speed_reduction: SpeedReduction | int = SpeedReduction.default
-    sync_flag: SyncFlag | int = SyncFlag.default
-    store_flag: StoreFlag | int = StoreFlag.default
+    loop_mode: LoopMode = LoopMode.default
+    speed_reduction: SpeedReduction = SpeedReduction.default
+    sync_flag: SyncFlag = SyncFlag.default
+    store_flag: StoreFlag = StoreFlag.default
 
     def __post_init__(self) -> None:
         """Validate enum parameters."""
-        self.loop_mode = LoopMode(self.loop_mode)
-        self.speed_reduction = SpeedReduction(self.speed_reduction)
+        if isinstance(self.loop_mode, int):
+            self.loop_mode = LoopMode(self.loop_mode)
+        if isinstance(self.speed_reduction, int):
+            self.speed_reduction = SpeedReduction(self.speed_reduction)
+        if isinstance(self.sync_flag, int):
+            self.sync_flag = SyncFlag(self.sync_flag)
+        if isinstance(self.store_flag, int):
+            self.store_flag = StoreFlag(self.store_flag)
 
 
 @dataclass

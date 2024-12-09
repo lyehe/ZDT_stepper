@@ -76,11 +76,10 @@ class Command(ABC):
     _response_length: int
     _protocol: Protocol | None = None
     _command_lock: bool = False
-    
+
     ParamsType = TypeVar("ParamsType", bound=StepperInput | ExtendedIntEnum | RangedInt)
     DataType = TypeVar("DataType")
     ReturnType = TypeVar("ReturnType")
-
 
     def __init__(
         self,
@@ -90,11 +89,9 @@ class Command(ABC):
     ):
         """Initialize the command.
 
-        The command is executed immediately after initialization.
-        :param serial_connection: Serial connection
-        :param address: Device address
-        :param checksum_mode: Checksum calculation mode
-        :param delay: Delay after sending the command
+        :param device: Device parameters - SerialConnection, Address, ChecksumMode, Delay
+        :param params: Parameters - command specific parameters
+        :param setting: Setting - StoreFlag or SyncFlag
         """
         if self._command_lock:
             raise CommandError("Command is locked.")
@@ -111,7 +108,7 @@ class Command(ABC):
         self.setting = self._process_setting(setting)
         self._command = _add_checksum(self._command_body, self.checksum_mode)
         self.serial_connection = device.serial_connection
-        
+
         if not self.serial_connection.is_open:
             logger.debug(f"Opening {self.serial_connection.name}")
             with self.serial_connection:
