@@ -7,7 +7,7 @@ Store:
     0x01: Store in EEPROM
 
 Sign:
-    0x00: Positive 
+    0x00: Positive
     0x01: Negative
 
 Sync:
@@ -60,14 +60,14 @@ Ready Status:
     0x0E: Calibration ready, homing in progress and failed
     0x0F: All conditions active (all ready, homing in progress and failed)
 
-Error return: 
+Error return:
     0x01 0x00 0xEE 0x6B
 
 #### Control Action List
 
 enable
-Format: Addr + 0xF3 + 0xAB + Enable_Status + Sync + Checksum 
-Return: Addr + 0xF3 + Status + Checksum 
+Format: Addr + 0xF3 + 0xAB + Enable_Status + Sync + Checksum
+Return: Addr + 0xF3 + Status + Checksum
 Example:
     Send: 01 F3 AB 01 00 6B
     Correct return: 01 F3 02 6B
@@ -78,8 +78,8 @@ Explanation:
         0x00: Disable motor
 
 jog
-Format: Addr + 0xF6 + Direction + Speed(2) + Acceleration + Sync + Checksum 
-Return: Addr + 0xF6 + Status + Checksum 
+Format: Addr + 0xF6 + Direction + Speed(2) + Acceleration + Sync + Checksum
+Return: Addr + 0xF6 + Status + Checksum
 Example:
     Send: 01 F6 01 05 DC 0A 00 6B
     Correct return: 01 F6 02 6B
@@ -99,8 +99,8 @@ Note:
     - Curve acceleration/deceleration time calculation formula: t2 - t1 = (256 - acc) * 50(us), Vt2 = Vt1 + 1(RPM)
 
 move
-Format: Addr + 0xFD + Direction + Speed(2) + Acceleration + Pulse_Count(4) + Relative/Absolute_Mode + Sync + Checksum 
-Return: Addr + 0xFD + Status + Checksum 
+Format: Addr + 0xFD + Direction + Speed(2) + Acceleration + Pulse_Count(4) + Relative/Absolute_Mode + Sync + Checksum
+Return: Addr + 0xFD + Status + Checksum
 Example:
     Send: 01 FD 01 05 DC 00 00 00 7D 00 00 00 6B
     Correct return: 01 FD 02 6B
@@ -127,8 +127,8 @@ Note:
     - Curve acceleration/deceleration time calculation formula: t2 - t1 = (256 - acc) * 50(us), Vt2 = Vt1 + 1(RPM)
 
 estop
-Format: Addr + 0xFE + 0x98 + Sync + Checksum 
-Return: Addr + 0xFE + Status + Checksum 
+Format: Addr + 0xFE + 0x98 + Sync + Checksum
+Return: Addr + 0xFE + Status + Checksum
 Example:
     Send: 01 FE 98 00 6B
     Correct return: 01 FE 02 6B
@@ -140,8 +140,8 @@ Note:
     - Makes motor stop immediately (emergency brake)
 
 sync_move
-Format: Addr + 0xFF + 0x66 + Checksum 
-Return: Addr + 0xFF + Status + Checksum 
+Format: Addr + 0xFF + 0x66 + Checksum
+Return: Addr + 0xFF + Status + Checksum
 Example:
     Send: 01 FF 66 6B
     Correct return: 01 FF 02 6B
@@ -155,8 +155,8 @@ Note:
 #### Home Return List
 
 set_home
-Format: Addr + 0x93 + 0x88 + Store + Checksum 
-Return: Addr + 0x93 + Status + Checksum 
+Format: Addr + 0x93 + 0x88 + Store + Checksum
+Return: Addr + 0x93 + Status + Checksum
 Example:
     Send: 01 93 88 01 6B
     Correct return: 01 93 02 6B
@@ -167,8 +167,8 @@ Note:
     - Can let motor turn to desired position, then send this to set single-turn home position
 
 home
-Format: Addr + 0x9A + Homing_Mode + Sync + Checksum 
-Return: Addr + 0x9A + Status + Checksum 
+Format: Addr + 0x9A + Homing_Mode + Sync + Checksum
+Return: Addr + 0x9A + Status + Checksum
 Example:
     Send: 01 9A 00 00 6B
     Correct return: 01 9A 02 6B
@@ -185,8 +185,8 @@ Conditions not met:
     - Single-turn home position value invalid
 
 stop_home
-Format: Addr + 0x9C + 0x48 + Checksum 
-Return: Addr + 0x9C + Status + Checksum 
+Format: Addr + 0x9C + 0x48 + Checksum
+Return: Addr + 0x9C + Status + Checksum
 Example:
     Send: 01 9C 48 6B
     Correct return: 01 9C 02 6B
@@ -197,7 +197,7 @@ Conditions not met:
     No homing operation currently triggered
 
 get_home_param
-Format: Addr + 0x22 + Checksum 
+Format: Addr + 0x22 + Checksum
 Return: Addr + 0x22 + Homing_Mode + Homing_Direction + Homing_Speed(2) + Homing_Timeout(4) + Collision_Detection_Speed(2) + Collision_Detection_Current(2) + Collision_Detection_Time(2) + Auto_Home + Checksum
 Example:
     Send: 01 22 6B
@@ -290,7 +290,7 @@ Return: Addr + 0x06 + Status + Checksum
 Example:
     Send: 01 06 45 6B
     Correct return: 01 06 02 6B
-    Condition_Err return: 01 06 E2 6B 
+    Condition_Err return: 01 06 E2 6B
 Explanation:
     Trigger encoder calibration, corresponding to "Cal" menu on screen
 Conditions not met:
@@ -432,7 +432,7 @@ Explanation:
         1+4 bytes, range: 0-65535 per revolution
         Example: 0x00010000 = -360.0° (with Sign = 0x01)
 
-get_setpoint 
+get_setpoint
 Format: Addr + 0x34 + Checksum
 Return: Addr + 0x34 + Sign + Motor_Target_Position(4) + Checksum
 Example:
@@ -466,8 +466,8 @@ Explanation:
         Example: 0x00010000 = -360.0° (with Sign = 0x01)
 
 get_error
-Format: Addr + 0x37 + Checksum 
-Return: Addr + 0x37 + Sign + Motor_Position_Error(4) + Checksum 
+Format: Addr + 0x37 + Checksum
+Return: Addr + 0x37 + Sign + Motor_Position_Error(4) + Checksum
 Example:
     Send: 01 37 6B
     Correct return: 01 37 01 00 00 00 08 6B
@@ -477,14 +477,14 @@ Explanation:
         Example: 0x00000008 = -0.0439453125° (with Sign = 0x01)
 
 get_status
-Format: Addr + 0x3A + Checksum 
-Return: Addr + 0x3A + Status + Checksum 
+Format: Addr + 0x3A + Checksum
+Return: Addr + 0x3A + Status + Checksum
 Example:
     Send: 01 3A 6B
     Correct return: 01 3A 03 6B
 
 get_config
-Format: Addr + 0x42 + 0x6C + Checksum 
+Format: Addr + 0x42 + 0x6C + Checksum
 Return: Addr + 0x42 + 0x21 + 0x15 + Motor_Type + Control_Mode + Comm_Mode + En_Level + Dir_Level + Microsteps + Microstep_Interp + Screen_Off + Open_Loop_Current(2) + Closed_Loop_Current(2) + Max_Voltage(2) + Baud_Rate + CAN_Rate + ID_Addr + Verify_Mode + Response_Mode + Stall_Protect + Stall_Speed(2) + Stall_Current(2) + Stall_Time(2) + Pos_Window(2) + Checksum
 Example:
     Send: 01 42 6C 6B
@@ -581,8 +581,8 @@ Explanation:
 #### Modify Parameter List
 
 set_microstep
-Format: Addr + 0x84 + 0x8A + Store + Microstep_Value + Checksum 
-Return: Addr + 0x84 + Status + Checksum 
+Format: Addr + 0x84 + 0x8A + Store + Microstep_Value + Checksum
+Return: Addr + 0x84 + Status + Checksum
 Example:
     Send: 01 84 8A 01 07 6B
     Correct return: 01 84 02 6B
@@ -592,8 +592,8 @@ Explanation:
         0x01-0x08: 1-8 microsteps
 
 set_id
-Format: Addr + 0xAE + 0x4B + Store + ID_Addr + Checksum 
-Return: Addr + 0xAE + Status + Checksum 
+Format: Addr + 0xAE + 0x4B + Store + ID_Addr + Checksum
+Return: Addr + 0xAE + Status + Checksum
 Example:
     Send: 01 AE 4B 01 10 6B
     Correct return: 01 AE 02 6B
@@ -603,8 +603,8 @@ Explanation:
         Example: 0x10 = ID 16
 
 set_mode
-Format: Addr + 0x46 + 0x69 + Store + Control_Mode + Checksum 
-Return: Addr + 0x46 + Status + Checksum 
+Format: Addr + 0x46 + 0x69 + Store + Control_Mode + Checksum
+Return: Addr + 0x46 + Status + Checksum
 Example:
     Send: 01 46 69 01 01 6B
     Correct return: 01 46 02 6B
@@ -614,8 +614,8 @@ Explanation:
         0x02: Closed loop mode
 
 set_current
-Format: Addr + 0x44 + 0x33 + Store + Open_Loop_Current(2) + Checksum 
-Return: Addr + 0x44 + Status + Checksum 
+Format: Addr + 0x44 + 0x33 + Store + Open_Loop_Current(2) + Checksum
+Return: Addr + 0x44 + Status + Checksum
 Example:
     Send: 01 44 33 00 03 E8 6B
     Correct return: 01 44 02 6B
@@ -626,7 +626,7 @@ Explanation:
 
 set_config
 Format: Addr + 0x48 + 0xD1 + Store + Motor_Type + Control_Mode + Comm_Mode + En_Level + Dir_Level + Microsteps + Microstep_Interp + Screen_Off + Open_Loop_Current(2) + Closed_Loop_Current(2) + Max_Voltage(2) + Baud_Rate + CAN_Rate + ID_Addr + Verify_Mode + Response_Mode + Stall_Protect + Stall_Speed(2) + Stall_Current(2) + Stall_Time(2) + Pos_Window(2) + Checksum
-Return: Addr + 0x48 + Status + Checksum 
+Return: Addr + 0x48 + Status + Checksum
 Example:
     Send: 01 48 D1 01 19 02 02 02 00 10 01 00 03 E8 0B B8 0F A0 05 07 01 00 01 01 00 28 09 60 0F A0 00 01 6B
     Correct return: 01 48 02 6B
@@ -687,8 +687,8 @@ Explanation:
         Example: 0x0001 = 0.1°
 
 set_pid
-Format: Addr + 0x4A + 0xC3 + Store + Kp(4) + Ki(4) + Kd(4) + Checksum 
-Return: Addr + 0x4A + Status + Checksum 
+Format: Addr + 0x4A + 0xC3 + Store + Kp(4) + Ki(4) + Kd(4) + Checksum
+Return: Addr + 0x4A + Status + Checksum
 Example:
     Send: 01 4A C3 00 00 00 F2 30 00 00 00 64 00 00 F2 30 6B
     Correct return: 01 4A 02 6B
@@ -704,8 +704,8 @@ Explanation:
         Example: 0x0000F230 = 62000
 
 save_speed
-Format: Addr + 0xF7 + 0x1C + Store + Direction + Speed(2) + Acceleration + En_Control + Checksum 
-Return: Addr + 0xF7 + Status + Checksum 
+Format: Addr + 0xF7 + 0x1C + Store + Direction + Speed(2) + Acceleration + En_Control + Checksum
+Return: Addr + 0xF7 + Status + Checksum
 Example:
     Send: 01 F7 1C 01 01 05 DC 0A 01 6B
     Correct return: 01 F7 02 6B
@@ -725,8 +725,8 @@ Note:
     - Select H for high level start, low level stop
 
 set_reduction
-Format: Addr + 0x4F + 0x71 + Store + Speed_Reduction + Checksum 
-Return: Addr + 0x4F + Status + Checksum 
+Format: Addr + 0x4F + 0x71 + Store + Speed_Reduction + Checksum
+Return: Addr + 0x4F + Status + Checksum
 Example:
     Send: 01 4F 71 01 01 6B
     Correct return: 01 4F 02 6B

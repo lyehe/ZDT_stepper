@@ -13,7 +13,7 @@ from serial import Serial
 from stepper.commands.move import Enable, Move
 from stepper.stepper_core.parameters import DeviceParams, PositionParams
 from stepper.stepper_core.configs import (
-    Address, Direction, Speed, 
+    Address, Direction, Speed,
     Acceleration, PulseCount, AbsoluteFlag
 )
 
