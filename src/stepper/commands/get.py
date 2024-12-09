@@ -38,7 +38,7 @@ __all__ = [
     "GetOpenLoopSetpoint",
     "GetRealTimeSpeed",
     "GetRealTimePosition",
-    "GetError",
+    "GetPositionError",
     "GetStatus",
     "GetConfig",
     "GetSysStatus",
@@ -137,7 +137,7 @@ class GetRealTimePosition(GetCommand):
     ReturnType = RealTimePositionParams
 
 
-class GetError(GetCommand):
+class GetPositionError(GetCommand):
     """Get error command configuration."""
 
     _code = Code.GET_ERROR

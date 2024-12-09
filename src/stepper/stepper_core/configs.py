@@ -352,7 +352,7 @@ class Speed(RangedInt):
 
     minimum = 0
     maximum = 3000
-    default = 0
+    default = 100
     digits = 2
     unit = SpeedUnit
 
@@ -370,7 +370,7 @@ class Acceleration(RangedInt):
 
     minimum = 0
     maximum = 255
-    default = 0
+    default = 250
     digits = 1
     # t2 - t1 = (256 - acc) * 50(us)，Vt2 = Vt1 + 1(RPM)
 
@@ -657,6 +657,31 @@ class BaudRate(ExtendedIntEnum):
     BAUD_921600 = 0x08
     default = BAUD_115200
 
+    @classmethod
+    def from_value(cls, value: int) -> "BaudRate":
+        """From value."""
+        match value:
+            case 9600:
+                return cls.BAUD_9600
+            case 19200:
+                return cls.BAUD_19200
+            case 25000:
+                return cls.BAUD_25000
+            case 38400:
+                return cls.BAUD_38400
+            case 57600:
+                return cls.BAUD_57600
+            case 115200:
+                return cls.BAUD_115200
+            case 256000:
+                return cls.BAUD_256000
+            case 512000:
+                return cls.BAUD_512000
+            case 921600:
+                return cls.BAUD_921600
+            case _:
+                raise ValueError(f"Invalid baud rate: {value}")
+
 
 class CanRate(ExtendedIntEnum):
     """CAN bus rate in bits per second for configuration.
@@ -675,6 +700,33 @@ class CanRate(ExtendedIntEnum):
     CAN_800K = 0x08
     CAN_1000K = 0x09
     default = CAN_500K
+
+    @classmethod
+    def from_value(cls, value: int) -> "CanRate":
+        """From value."""
+        match value:
+            case 10000:
+                return cls.CAN_10K
+            case 20000:
+                return cls.CAN_20K
+            case 50000:
+                return cls.CAN_50K
+            case 83000:
+                return cls.CAN_83K
+            case 100000:
+                return cls.CAN_100K
+            case 125000:
+                return cls.CAN_125K
+            case 250000:
+                return cls.CAN_250K
+            case 500000:
+                return cls.CAN_500K
+            case 800000:
+                return cls.CAN_800K
+            case 1000000:
+                return cls.CAN_1000K
+            case _:
+                raise ValueError(f"Invalid CAN rate: {value}")
 
 
 class ChecksumMode(ExtendedIntEnum):

@@ -43,9 +43,6 @@ class Jog(MoveCommand, WithClassParams):
     _code: Code = Code.JOG
     ParamsType = JogParams
 
-    def _process_params(self, params: JogParams) -> JogParams:
-        return params
-
 
 class Move(MoveCommand, WithClassParams):
     """Move command configuration."""

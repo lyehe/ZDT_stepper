@@ -8,7 +8,6 @@ from . import (
     system,
 )
 
-# Explicitly list all available commands by combining submodule exports
 __all__ = (
     *get.__all__,
     *home.__all__,

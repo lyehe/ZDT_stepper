@@ -61,6 +61,7 @@ class SetHomeParam(WithClassParams, TakeStoreSetting, ReturnSuccess):
 
     _code: Code = Code.SET_HOME_PARAM
     _protocol: Protocol = Protocol.SET_HOME_PARAM
+    _command_lock: bool = True
     ParamsType = HomingParams
 
 

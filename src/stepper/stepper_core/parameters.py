@@ -34,6 +34,7 @@ from .configs import (
     HomingTimeout,
     InductanceUnit,
     Kpid,
+    LoopMode,
     MaxVoltage,
     Microstep,
     MicrostepInterp,
@@ -45,11 +46,14 @@ from .configs import (
     ResponseMode,
     ScreenOff,
     Speed,
+    SpeedReduction,
     SpeedUnit,
     StallCurrent,
     StallProtect,
     StallSpeed,
     StallTime,
+    StoreFlag,
+    SyncFlag,
     TimeUnit,
     VoltageUnit,
 )
@@ -76,8 +80,6 @@ __all__ = [
     "StartSpeedParams",
     "ConfigParams",
     "SystemParams",
-    "Readables",
-    "Writables",
 ]
 
 
@@ -95,6 +97,44 @@ def to_signed_int(input: bytes) -> int:
     return sign * to_int(input[1:])
 
 
+@dataclass(frozen=True)
+class SerialParams:
+    """Serial connection parameters.
+
+    :param port: Serial port name (e.g., 'COM1', '/dev/ttyUSB0')
+    :param baudrate: Communication speed in bits per second
+    :param timeout: Read timeout in seconds
+    :param write_timeout: Write timeout in seconds
+    :param parity: Parity checking (PARITY_NONE, PARITY_EVEN, PARITY_ODD)
+    :param stopbits: Number of stop bits (STOPBITS_ONE, STOPBITS_TWO)
+    :param bytesize: Number of data bits
+    """
+
+    port: str
+    baudrate: int = 115200
+    timeout: float | None = 1.0
+    write_timeout: float | None = 1.0
+    parity: str = "N"  # PARITY_NONE
+    stopbits: int = 1  # STOPBITS_ONE
+    bytesize: int = 8  # EIGHTBITS
+    _connection: Serial | None = field(default=None, init=False)
+
+    @property
+    def connection(self) -> Serial:
+        """Get or create a serial connection with the specified parameters."""
+        if self._connection is None:
+            self._connection = Serial(
+                port=self.port,
+                baudrate=self.baudrate,
+                timeout=self.timeout,
+                write_timeout=self.write_timeout,
+                parity=self.parity,
+                stopbits=self.stopbits,
+                bytesize=self.bytesize,
+            )
+        return self._connection
+
+
 @dataclass
 class DeviceParams:
     """Device parameter class.
@@ -106,9 +146,14 @@ class DeviceParams:
     """
 
     serial_connection: Serial
-    address: Address = Address.default
+    address: Address | int = Address.default
     checksum_mode: ChecksumMode = ChecksumMode.default
     delay: float | None = None
+
+    def __post_init__(self):
+        """Post initialization to set address."""
+        if isinstance(self.address, int):
+            self.address = Address(self.address)
 
 
 @dataclass
@@ -173,8 +218,20 @@ class JogParams(StepperInput):
     """Velocity data params."""
 
     direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
+    speed: Speed | int = Speed.default
+    acceleration: Acceleration | int = Acceleration.default
+
+    def __post_init__(self):
+        """Post initialization to set direction and speed."""
+        if isinstance(self.speed, int):
+            if self.speed < 0:
+                self.direction = Direction.CCW
+                self.speed = Speed(-self.speed)
+            else:
+                self.direction = Direction.CW
+                self.speed = Speed(self.speed)
+        if isinstance(self.acceleration, int):
+            self.acceleration = Acceleration(self.acceleration)
 
     @property
     def bytes(self) -> bytes:
@@ -187,10 +244,24 @@ class PositionParams(StepperInput):
     """Position data params."""
 
     direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
-    pulse_count: PulseCount = PulseCount.default
+    speed: Speed | int = Speed.default
+    acceleration: Acceleration | int = Acceleration.default
+    pulse_count: PulseCount | int = PulseCount.default
     absolute: AbsoluteFlag = AbsoluteFlag.default
+
+    def __post_init__(self):
+        """Post initialization to set direction and speed."""
+        if isinstance(self.speed, int):
+            self.speed = Speed(self.speed)
+        if isinstance(self.acceleration, int):
+            self.acceleration = Acceleration(self.acceleration)
+        if isinstance(self.pulse_count, int):
+            if self.pulse_count < 0:
+                self.direction = Direction.CCW
+                self.pulse_count = PulseCount(-self.pulse_count)
+            else:
+                self.direction = Direction.CW
+                self.pulse_count = PulseCount(self.pulse_count)
 
     @property
     def bytes(self) -> bytes:
@@ -225,14 +296,25 @@ class HomingParams(StepperInput, StepperOutput):
     homing_direction: HomingDirection
     homing_speed: HomingSpeed
     homing_timeout: HomingTimeout
-    collision_detection_speed: CollisionDetectionSpeed
-    collision_detection_current: CollisionDetectionCurrent
-    collision_detection_time: CollisionDetectionTime
+    collision_detection_speed: CollisionDetectionSpeed | int
+    collision_detection_current: CollisionDetectionCurrent | int
+    collision_detection_time: CollisionDetectionTime | int
     auto_home: AutoHoming
 
     current_unit: CurrentUnit = CurrentUnit.default
     time_unit: TimeUnit = TimeUnit.default
     speed_unit: SpeedUnit = SpeedUnit.default
+
+    def __post_init__(self):
+        """Post initialization to set collision detection speed and current."""
+        if isinstance(self.collision_detection_speed, int):
+            self.collision_detection_speed = CollisionDetectionSpeed(self.collision_detection_speed)
+        if isinstance(self.collision_detection_current, int):
+            self.collision_detection_current = CollisionDetectionCurrent(
+                self.collision_detection_current
+            )
+        if isinstance(self.collision_detection_time, int):
+            self.collision_detection_time = CollisionDetectionTime(self.collision_detection_time)
 
     @property
     def bytes(self) -> bytes:
@@ -256,14 +338,11 @@ class HomingParams(StepperInput, StepperOutput):
         return {
             "homing_mode": self.homing_mode.name,
             "homing_direction": self.homing_direction.name,
-            f"homing_speed ({self.speed_unit.name})": self.homing_speed / self.speed_unit,
+            f"homing_speed ({self.speed_unit.name})": self.homing_speed,
             "homing_timeout": self.homing_timeout,
-            f"collision_detection_speed ({self.speed_unit.name})": self.collision_detection_speed
-            / self.speed_unit,
-            f"collision_detection_current ({self.current_unit.name})": self.collision_detection_current  # noqa: E501
-            / self.current_unit,
-            f"collision_detection_time ({self.time_unit.name})": self.collision_detection_time
-            / self.time_unit,
+            f"collision_detection_speed ({self.speed_unit.name})": self.collision_detection_speed,
+            f"collision_detection_current ({self.current_unit.name})": self.collision_detection_current,  # noqa: E501
+            f"collision_detection_time ({self.time_unit.name})": self.collision_detection_time,
             "auto_home": self.auto_home.name,
         }
 
@@ -345,14 +424,30 @@ class MotorRHParams(StepperOutput):
     resistance_unit: ResistanceUnit = ResistanceUnit.default
     inductance_unit: InductanceUnit = InductanceUnit.default
 
+    _r_value: float = field(init=False)
+    _h_value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set resistance and inductance values."""
+        self._r_value = self.phase_resistance / self.resistance_unit
+        self._h_value = self.phase_inductance / self.inductance_unit
+
+    @property
+    def r_value(self) -> float:
+        """Resistance value."""
+        return self._r_value
+
+    @property
+    def h_value(self) -> float:
+        """Inductance value."""
+        return self._h_value
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
         return {
-            f"phase_resistance ({self.resistance_unit.name})": self.phase_resistance
-            / self.resistance_unit,
-            f"phase_inductance ({self.inductance_unit.name})": self.phase_inductance
-            / self.inductance_unit,
+            f"phase_resistance ({self.resistance_unit.name})": self._r_value,
+            f"phase_inductance ({self.inductance_unit.name})": self._h_value,
         }
 
     @classmethod
@@ -401,10 +496,25 @@ class BusVoltageParams(StepperOutput):
     voltage: int
     unit: VoltageUnit = VoltageUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set voltage value."""
+        self._value = self.voltage / self.unit.value
+
     @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.voltage
+
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"voltage ({self.unit.name})": self.voltage / self.unit.value}
+        return {f"voltage ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "BusVoltageParams":
@@ -419,10 +529,26 @@ class PhaseCurrentParams(StepperOutput):
     current: int
     unit: CurrentUnit = CurrentUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set current value."""
+        self._value = self.current / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.current
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"current ({self.unit.name})": self.current / self.unit.value}
+        return {f"current ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "PhaseCurrentParams":
@@ -437,10 +563,31 @@ class EncoderParams(StepperOutput):
     encoder_value: int
     unit: AngleUnit = AngleUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set angle value."""
+        self._value = self.encoder_value / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def angle(self) -> float:
+        """Angle."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.encoder_value
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"encoder_value ({self.unit.name})": self.encoder_value / self.unit.value}
+        return {f"encoder_value ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "EncoderParams":
@@ -455,10 +602,36 @@ class PulseCountParams(StepperOutput):
     pulse_count: int
     microsteps: Microstep = Microstep.default
 
+    _value: float = field(init=False)
+    _angle: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set value and angle."""
+        self._value = self.pulse_count / self.microsteps
+        self._angle = self.pulse_count / self.microsteps / 200 * 360
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def angle(self) -> float:
+        """Angle."""
+        return self._angle
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.pulse_count
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {"pulse_count": self.pulse_count, "step_count": self.pulse_count / self.microsteps}
+        return {
+            "pulse_count": self.pulse_count,
+            "step_count": self.pulse_count / self.microsteps,
+        }
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "PulseCountParams":
@@ -473,10 +646,26 @@ class TargetPositionParams(StepperOutput):
     position: int
     unit: AngleUnit = AngleUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set value and angle."""
+        self._value = self.position / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.position
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"target_position ({self.unit.name})": self.position / self.unit.value}
+        return {f"target_position ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "TargetPositionParams":
@@ -491,10 +680,26 @@ class OpenLoopTargetPositionParams(StepperOutput):
     position: int
     unit: AngleUnit = AngleUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set value."""
+        self._value = self.position / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.position
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"open_loop_target_position ({self.unit.name})": self.position / self.unit.value}
+        return {f"open_loop_target_position ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "OpenLoopTargetPositionParams":
@@ -509,10 +714,26 @@ class RealTimeSpeedParams(StepperOutput):
     speed: int
     unit: SpeedUnit = SpeedUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set value."""
+        self._value = self.speed / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.speed
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"real_time_speed ({self.unit.name})": self.speed / self.unit}
+        return {f"real_time_speed ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "RealTimeSpeedParams":
@@ -527,10 +748,31 @@ class RealTimePositionParams(StepperOutput):
     position: int
     unit: AngleUnit = AngleUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set value."""
+        self._value = self.position / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def angle(self) -> float:
+        """Angle."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.position
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"real_time_position ({self.unit.name})": self.position / self.unit.value}
+        return {f"real_time_position ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "RealTimePositionParams":
@@ -545,10 +787,31 @@ class PositionErrorParams(StepperOutput):
     error: int
     unit: AngleUnit = AngleUnit.default
 
+    _value: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set value."""
+        self._value = self.error / self.unit.value
+
+    @property
+    def value(self) -> float:
+        """Value."""
+        return self._value
+
+    @property
+    def angle(self) -> float:
+        """Angle."""
+        return self._value
+
+    @property
+    def raw_value(self) -> int:
+        """Raw value."""
+        return self.error
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
-        return {f"position_error ({self.unit.name})": self.error / self.unit.value}
+        return {f"position_error ({self.unit.name})": self._value}
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "PositionErrorParams":
@@ -594,9 +857,21 @@ class StartSpeedParams(StepperInput):
     """Start speed parameters."""
 
     direction: Direction = Direction.default
-    speed: Speed = Speed.default
-    acceleration: Acceleration = Acceleration.default
+    speed: Speed | int = Speed(0)
+    acceleration: Acceleration | int = Acceleration(0)
     en_control: EnablePin = EnablePin.default
+
+    def __post_init__(self):
+        """Post initialization to set direction and speed."""
+        if isinstance(self.speed, int):
+            if self.speed < 0:
+                self.direction = Direction.CCW
+                self.speed = Speed(-self.speed)
+            else:
+                self.direction = Direction.CW
+                self.speed = Speed(self.speed)
+        if isinstance(self.acceleration, int):
+            self.acceleration = Acceleration(self.acceleration)
 
     @property
     def bytes(self) -> bytes:
@@ -638,33 +913,98 @@ class ConfigParams(StepperInput, StepperOutput):
     :param pos_window: Position window
     """
 
-    stepper_type: MotorType = MotorType.default
-    control_mode: ControlMode = ControlMode.default
-    communication_mode: CommunicationMode = CommunicationMode.default
-    enable_level: EnableLevel = EnableLevel.default
-    default_direction: Direction = Direction.default
-    microsteps: Microstep = Microstep.default
-    microstep_interp: MicrostepInterp = MicrostepInterp.default
-    screen_off: ScreenOff = ScreenOff.default
-    open_loop_current: OpenLoopCurrent = OpenLoopCurrent.default
-    max_closed_loop_current: ClosedLoopCurrent = ClosedLoopCurrent.default
-    max_voltage: MaxVoltage = MaxVoltage.default
-    baud_rate: BaudRate = BaudRate.default
-    can_rate: CanRate = CanRate.default
-    address: Address = Address.default
-    checksum_mode: ChecksumMode = ChecksumMode.default
-    response_mode: ResponseMode = ResponseMode.default
-    stall_protect: StallProtect = StallProtect.default
-    stall_speed: StallSpeed = StallSpeed.default
-    stall_current: StallCurrent = StallCurrent.default
-    stall_time: StallTime = StallTime.default
-    on_target_window: OnTargetWindow = OnTargetWindow.default
+    stepper_type: MotorType
+    control_mode: ControlMode
+    communication_mode: CommunicationMode
+    enable_level: EnableLevel
+    default_direction: Direction
+    microsteps: Microstep
+    microstep_interp: MicrostepInterp
+    screen_off: ScreenOff
+    open_loop_current: OpenLoopCurrent
+    max_closed_loop_current: ClosedLoopCurrent
+    max_voltage: MaxVoltage
+    baud_rate: BaudRate
+    can_rate: CanRate
+    address: Address
+    checksum_mode: ChecksumMode
+    response_mode: ResponseMode
+    stall_protect: StallProtect
+    stall_speed: StallSpeed
+    stall_current: StallCurrent
+    stall_time: StallTime
+    on_target_window: OnTargetWindow
 
-    current_unit: CurrentUnit = CurrentUnit.default
-    voltage_unit: VoltageUnit = VoltageUnit.default
-    angle_unit: AngleUnit = AngleUnit.default
-    time_unit: TimeUnit = TimeUnit.default
-    speed_unit: SpeedUnit = SpeedUnit.default
+    current_unit: CurrentUnit
+    voltage_unit: VoltageUnit
+    angle_unit: AngleUnit
+    time_unit: TimeUnit
+    speed_unit: SpeedUnit
+
+    _open_loop_current: float = field(init=False)
+    _max_closed_loop_current: float = field(init=False)
+    _max_voltage: float = field(init=False)
+    _stall_speed: float = field(init=False)
+    _stall_current: float = field(init=False)
+    _stall_time: float = field(init=False)
+    _on_target_window: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set direction and speed."""
+        self.microsteps = Microstep(self.microsteps)
+        self.open_loop_current = OpenLoopCurrent(self.open_loop_current)
+        self.max_closed_loop_current = ClosedLoopCurrent(self.max_closed_loop_current)
+        self.max_voltage = MaxVoltage(self.max_voltage)
+        self.stall_speed = StallSpeed(self.stall_speed)
+        self.stall_current = StallCurrent(self.stall_current)
+        self.stall_time = StallTime(self.stall_time)
+        if isinstance(self.on_target_window, int):
+            self.on_target_window = OnTargetWindow(self.on_target_window)
+        elif isinstance(self.on_target_window, float):
+            self.on_target_window = OnTargetWindow(int(self.on_target_window * 10))
+
+        self._open_loop_current = self.open_loop_current / self.current_unit
+        self._max_closed_loop_current = self.max_closed_loop_current / self.current_unit
+        self._max_voltage = self.max_voltage / self.voltage_unit
+        self._stall_speed = self.stall_speed / self.speed_unit
+        self._stall_current = self.stall_current / self.current_unit
+        self._stall_time = self.stall_time / self.time_unit
+        self._on_target_window = self.on_target_window / 10
+
+    @property
+    def open_loop_current_value(self) -> float:
+        """Open loop current value."""
+        return self._open_loop_current
+
+    @property
+    def max_closed_loop_current_value(self) -> float:
+        """Max closed loop current value."""
+        return self._max_closed_loop_current
+
+    @property
+    def max_voltage_value(self) -> float:
+        """Max voltage value."""
+        return self._max_voltage
+
+    @property
+    def stall_speed_value(self) -> float:
+        """Stall speed value."""
+        return self._stall_speed
+
+    @property
+    def stall_current_value(self) -> float:
+        """Stall current value."""
+        return self._stall_current
+
+    @property
+    def stall_time_value(self) -> float:
+        """Stall time value."""
+        return self._stall_time
+
+    @property
+    def on_target_window_value(self) -> float:
+        """On target window value."""
+        return self._on_target_window
 
     @property
     def bytes(self) -> bytes:
@@ -707,21 +1047,19 @@ class ConfigParams(StepperInput, StepperOutput):
             "microsteps": self.microsteps,
             "microstep_interp": self.microstep_interp.name,
             "screen_off": self.screen_off.name,
-            f"open_loop_current ({self.current_unit.name})": self.open_loop_current
-            / self.current_unit,
-            f"max_closed_loop_current ({self.current_unit.name})": self.max_closed_loop_current
-            / self.current_unit,
-            f"max_voltage ({self.voltage_unit.name})": self.max_voltage / self.voltage_unit,
+            f"open_loop_current ({self.current_unit.name})": self._open_loop_current,
+            f"max_closed_loop_current ({self.current_unit.name})": self._max_closed_loop_current,
+            f"max_voltage ({self.voltage_unit.name})": self._max_voltage,
             "baud_rate": self.baud_rate.name,
             "can_rate": self.can_rate.name,
             "address": self.address,
             "checksum_mode": self.checksum_mode.name,
             "response_mode": self.response_mode.name,
             "stall_protect": self.stall_protect.name,
-            f"stall_speed ({self.speed_unit.name})": self.stall_speed / self.speed_unit,
-            f"stall_current ({self.current_unit.name})": self.stall_current / self.current_unit,
-            f"stall_time ({self.time_unit.name})": self.stall_time / self.time_unit,
-            "on_target_window": self.on_target_window / 10,
+            f"stall_speed ({self.speed_unit.name})": self._stall_speed,
+            f"stall_current ({self.current_unit.name})": self._stall_current,
+            f"stall_time ({self.time_unit.name})": self._stall_time,
+            "on_target_window": self._on_target_window,
         }
 
     @classmethod
@@ -793,23 +1131,70 @@ class SystemParams(StepperOutput):
     angle_unit: AngleUnit = AngleUnit.default
     speed_unit: SpeedUnit = SpeedUnit.default
 
+    _bus_voltage: float = field(init=False)
+    _bus_phase_current: float = field(init=False)
+    _calibrated_encoder_value: float = field(init=False)
+    _stepper_target_position: float = field(init=False)
+    _stepper_real_time_speed: float = field(init=False)
+    _stepper_real_time_position: float = field(init=False)
+    _stepper_position_error: float = field(init=False)
+
+    def __post_init__(self):
+        """Post initialization to set values."""
+        self._bus_voltage = self.bus_voltage / self.voltage_unit
+        self._bus_phase_current = self.bus_phase_current / self.current_unit
+        self._calibrated_encoder_value = self.calibrated_encoder_value / self.angle_unit.value
+        self._stepper_target_position = self.stepper_target_position / self.angle_unit.value
+        self._stepper_real_time_speed = self.stepper_real_time_speed / self.speed_unit
+        self._stepper_real_time_position = self.stepper_real_time_position / self.angle_unit.value
+        self._stepper_position_error = self.stepper_position_error / self.angle_unit.value
+
+    @property
+    def bus_voltage_value(self) -> float:
+        """Bus voltage value."""
+        return self._bus_voltage
+
+    @property
+    def bus_phase_current_value(self) -> float:
+        """Bus phase current value."""
+        return self._bus_phase_current
+
+    @property
+    def calibrated_encoder_angle(self) -> float:
+        """Calibrated encoder value value."""
+        return self._calibrated_encoder_value
+
+    @property
+    def stepper_target_angle(self) -> float:
+        """Stepper target position value."""
+        return self._stepper_target_position
+
+    @property
+    def stepper_real_time_speed_value(self) -> float:
+        """Stepper real time speed value."""
+        return self._stepper_real_time_speed
+
+    @property
+    def stepper_real_time_position_angle(self) -> float:
+        """Stepper real time position value."""
+        return self._stepper_real_time_position
+
+    @property
+    def stepper_position_error_angle(self) -> float:
+        """Stepper position error value."""
+        return self._stepper_position_error
+
     @property
     def data_dict(self) -> dict:
         """Dictionary representation."""
         return {
-            f"bus_voltage ({self.voltage_unit.name})": self.bus_voltage / self.voltage_unit,
-            f"bus_phase_current ({self.current_unit.name})": self.bus_phase_current
-            / self.current_unit,
-            f"calibrated_encoder_value ({self.angle_unit.name})": self.calibrated_encoder_value
-            / self.angle_unit.value,
-            f"stepper_target_position ({self.angle_unit.name})": self.stepper_target_position
-            / self.angle_unit.value,
-            f"stepper_real_time_speed ({self.speed_unit.name})": self.stepper_real_time_speed
-            / self.speed_unit,
-            f"stepper_real_time_position ({self.angle_unit.name})": self.stepper_real_time_position
-            / self.angle_unit.value,
-            f"stepper_position_error ({self.angle_unit.name})": self.stepper_position_error
-            / self.angle_unit.value,
+            f"bus_voltage ({self.voltage_unit.name})": self._bus_voltage,
+            f"bus_phase_current ({self.current_unit.name})": self._bus_phase_current,
+            f"calibrated_encoder_value ({self.angle_unit.name})": self._calibrated_encoder_value,
+            f"stepper_target_position ({self.angle_unit.name})": self._stepper_target_position,
+            f"stepper_real_time_speed ({self.speed_unit.name})": self._stepper_real_time_speed,
+            f"stepper_real_time_position ({self.angle_unit.name})": self._stepper_real_time_position,  # noqa: E501
+            f"stepper_position_error ({self.angle_unit.name})": self._stepper_position_error,
             "encoder_ready": self.homing_status.encoder_ready,
             "encoder_calibrated": self.homing_status.encoder_calibrated,
             "is_homing": self.homing_status.is_homing,
@@ -838,58 +1223,54 @@ class SystemParams(StepperOutput):
         )
 
 
-@dataclass
-class Readables:
-    """Readable params.
+class InputParams:
+    """Parameters that can only be used as input.
 
-    :param system_params: System params parameters
-    :param stepper_params: Motor params parameters
-    :param home_params: Home params parameters
-    :param pid_params: PID params parameters
+    :param jog_params: Parameters for jog movement
+    :param position_params: Parameters for position movement
+    :param start_speed_params: Parameters for start speed configuration
+    :param loop_mode: Control loop mode (open/closed)
+    :param speed_reduction: Speed reduction mode
     """
 
-    system_params: SystemParams | None = None
-    stepper_params: ConfigParams | None = None
-    home_params: HomingParams | None = None
-    pid_params: PIDParams | None = None
+    jog_params: JogParams = field(default_factory=JogParams)
+    position_params: PositionParams = field(default_factory=PositionParams)
+    start_speed_params: StartSpeedParams = field(default_factory=StartSpeedParams)
+    loop_mode: LoopMode | int = LoopMode.default
+    speed_reduction: SpeedReduction | int = SpeedReduction.default
+    sync_flag: SyncFlag | int = SyncFlag.default
+    store_flag: StoreFlag | int = StoreFlag.default
 
-    @property
-    def data_dict(self) -> dict:
-        """Dictionary representation."""
-        result = {}
-        if self.system_params is not None:
-            result.update(asdict(self.system_params))
-        if self.stepper_params is not None:
-            result.update(asdict(self.stepper_params))
-        if self.home_params is not None:
-            result.update(asdict(self.home_params))
-        if self.pid_params is not None:
-            result.update(asdict(self.pid_params))
-        return result
+    def __post_init__(self) -> None:
+        """Validate enum parameters."""
+        self.loop_mode = LoopMode(self.loop_mode)
+        self.speed_reduction = SpeedReduction(self.speed_reduction)
 
 
 @dataclass
-class Writables:
-    """Writable params."""
+class OutputParams:
+    """Parameters that can only be used as output."""
 
-    position_params: PositionParams | None = None
-    velocity_params: JogParams | None = None
-    home_params: HomingParams | None = None
-    stepper_params: ConfigParams | None = None
-    pid_params: PIDParams | None = None
+    version_params: VersionParams
+    motor_rh_params: MotorRHParams
+    bus_voltage_params: BusVoltageParams
+    phase_current_params: PhaseCurrentParams
+    encoder_params: EncoderParams
+    pulse_count_params: PulseCountParams
+    target_position_params: TargetPositionParams
+    open_loop_target_position_params: OpenLoopTargetPositionParams
+    real_time_speed_params: RealTimeSpeedParams
+    real_time_position_params: RealTimePositionParams
+    position_error_params: PositionErrorParams
+    stepper_status: StepperStatus
+    system_params: SystemParams
+    homing_status: HomingStatus
 
-    @property
-    def data_dict(self) -> dict:
-        """Dictionary representation."""
-        result = {}
-        if self.position_params is not None:
-            result.update(asdict(self.position_params))
-        if self.velocity_params is not None:
-            result.update(asdict(self.velocity_params))
-        if self.home_params is not None:
-            result.update(asdict(self.home_params))
-        if self.stepper_params is not None:
-            result.update(asdict(self.stepper_params))
-        if self.pid_params is not None:
-            result.update(asdict(self.pid_params))
-        return result
+
+@dataclass
+class InputOutputParams:
+    """Parameters that can be used as both input and output."""
+
+    homing_params: HomingParams
+    pid_params: PIDParams
+    config_params: ConfigParams

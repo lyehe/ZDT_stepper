@@ -24,7 +24,7 @@ from ..stepper_core.parameters import DeviceParams, StepperInput, StepperOutput
 logger = getLogger(__name__)
 
 
-DataType: TypeAlias = int | bytes | float
+ResponseType: TypeAlias = bytes | None
 GroupSettingType: TypeAlias = StoreFlag | SyncFlag
 
 
@@ -76,7 +76,11 @@ class Command(ABC):
     _response_length: int
     _protocol: Protocol | None = None
     _command_lock: bool = False
-    ParamsType = TypeVar("ParamsType", StepperInput, ExtendedIntEnum, RangedInt)
+    
+    ParamsType = TypeVar("ParamsType", bound=StepperInput | ExtendedIntEnum | RangedInt)
+    DataType = TypeVar("DataType")
+    ReturnType = TypeVar("ReturnType")
+
 
     def __init__(
         self,
@@ -96,22 +100,19 @@ class Command(ABC):
             raise CommandError("Command is locked.")
 
         self._timestamp = time()
+        self._response: ResponseType = None
+        self._raw_data: self.ReturnType = None
+        self._data: self.DataType = None
 
         self.address = device.address
         self.checksum_mode = device.checksum_mode
         self.delay = device.delay
         self.params = self._process_params(params)
         self.setting = self._process_setting(setting)
-
         self._command = _add_checksum(self._command_body, self.checksum_mode)
-        self._response: DataType = None
-        self._raw_data: DataType = None
-        self._data: DataType = None
         self.serial_connection = device.serial_connection
-        self._connection_flag = self.serial_connection.is_open
-        logger.debug(f"Connection flag: {self._connection_flag}")
-
-        if not self._connection_flag:
+        
+        if not self.serial_connection.is_open:
             logger.debug(f"Opening {self.serial_connection.name}")
             with self.serial_connection:
                 self._status = self._execute()
@@ -175,7 +176,7 @@ class Command(ABC):
     @property
     def is_serial_active(self) -> bool:
         """Serial connection active."""
-        return self._connection_flag
+        return self.serial_connection.is_open
 
     @property
     def is_success(self) -> bool | StatusCode:
