@@ -8,7 +8,7 @@ version = "0.1.1"
 description = "ZDT stepper motor control library"
 authors = [{ name = "Yehe Liu", email = "yehe@opsiclear.com" }]
 requires-python = ">=3.10"
-dependencies = ["pyserial", "pyyaml", "tqdm", "zdt", "张大头"]
+dependencies = ["pyserial", "pyyaml", "tqdm"]
 license = { file = "LICENSE" }
 readme = "README.md"
 keywords = ["stepper", "motor", "control"]
