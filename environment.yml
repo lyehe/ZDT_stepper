@@ -11,5 +11,4 @@ dependencies:
   - ruff
   - pre-commit
   - twine
-  - pytest
   - ipykernel

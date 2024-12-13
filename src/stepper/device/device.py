@@ -425,7 +425,7 @@ class Device:
         """Set on target window."""
         if isinstance(on_target_window, float):
             on_target_window = int(on_target_window * 10)
-        elif isinstance(on_target_window, int):
+        if isinstance(on_target_window, int):
             on_target_window = OnTargetWindow(on_target_window)
         self._current_config.on_target_window = on_target_window
         return self.set_config()

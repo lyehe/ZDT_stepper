@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zdt_stepper"
-version = "0.1.0"
+version = "0.1.1"
 description = "ZDT stepper motor control library"
 authors = [{ name = "Yehe Liu", email = "yehe@opsiclear.com" }]
 requires-python = ">=3.10"
-dependencies = ["pyserial", "pyyaml", "tqdm"]
+dependencies = ["pyserial", "pyyaml", "tqdm", "zdt", "张大头"]
 license = { file = "LICENSE" }
 readme = "README.md"
 keywords = ["stepper", "motor", "control"]
